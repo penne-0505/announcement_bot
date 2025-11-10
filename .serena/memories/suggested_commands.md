@@ -1,0 +1,7 @@
+- 依存インストール: `poetry install`
+- 環境変数: `cp .env.example .env` の上で `.env` に `DISCORD_BOT_TOKEN` を設定
+- Bot 実行: `poetry run clover-announcement-bot` または `poetry run python -m src.main`
+- テスト: `poetry run pytest`
+- ドキュメント閲覧補助: `ls docs`, `rg PATTERN docs/`
+- 作業状況確認: `git status`, `rg --files`
+- 日付確認: `date`（必須ルール）

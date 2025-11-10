@@ -1,0 +1,4 @@
+- 変更後は `poetry run pytest` でテスト。必要なら bot 実行手順や再現手順を PR に記述。
+- 関連する draft/plan/intent/guide/reference を確認し、更新・追記・リンク修正を実施。昇格・アーカイブ作業は `documentation_operations.md` のフローに従う。
+- コード変更点とドキュメント変更点を PR 説明にまとめ、目的と影響を明記。レビュー時に確認しやすいようテスト結果も記載。
+- 作業ブランチを `feature/` などで運用し、コミットメッセージは `feat: ...` 等で統一。

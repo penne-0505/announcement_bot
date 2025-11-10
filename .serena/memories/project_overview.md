@@ -1,0 +1,4 @@
+- Discord 向け告知モーダル Bot。`/setup` Slash コマンドからモーダルを開き、任意チャンネルへ安全にメッセージ送信する機能を `ds_rin_bot` から移植し再構成している。
+- Python 3.12 + discord.py 2.6, python-dotenv。パッケージ／スクリプト管理は Poetry で、CLI エントリーポイント `poetry run clover-announcement-bot`（`src.main:main`）。
+- ディレクトリ概要: `src/app`(設定・DI, DiscordApplication), `src/bot`(Client 実装と Slash コマンド), `src/views`(UI View/Modal), `tests/`(bot/views 単体テスト), `docs/`(draft/plan/intent/guide/reference 等の文書体系)。
+- ドキュメントが開発の基盤。ドラフト→調査→計画→意図→ガイド／リファレンス→アーカイブの流れを `docs/standards/documentation_guidelines.md` / `documentation_operations.md` で厳格に規定している。

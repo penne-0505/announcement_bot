@@ -1,0 +1,5 @@
+- すべて type hints 付きのモダン Python。dataclass, asyncio, logging を活用し、副作用箇所は LOGGER で記録。UI コールバック等テスト困難コードには `# pragma: no cover`。
+- Git 運用: ブランチ `feature/|fix/|chore/` を `dev` ベースで切り、コミット／PR タイトルは `feat: ...` 等英語。説明に目的・影響を記載。
+- ドキュメントは必須。`docs/standards/documentation_guidelines.md` と `documentation_operations.md` に従い、draft/survey→plan→intent→(guide/reference)→archives を遵守し、front-matter や昇格条件を満たす。コード変更に伴う関連ドキュメント更新が必須。
+- Python ワンライナーや解析スクリプトの実行は禁止。ファイル削除（`git rm`/`rm`）も禁止で、必要ならユーザーに提案のみ。interaction は常に日本語。
+- ログイン情報など秘密は `.env` に置き、本番コードでは `load_config` で検証済みトークンを使用する。
