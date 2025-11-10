@@ -48,12 +48,16 @@ async def test_process_modal_submission_handles_invalid_channel_id() -> None:
         message_value="hello",
     )
 
-    assert interaction.response.messages[0]["content"] == SendMessageModal.ERROR_INVALID_ID
+    assert (
+        interaction.response.messages[0]["content"] == SendMessageModal.ERROR_INVALID_ID
+    )
     assert interaction.response.messages[0]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
-async def test_process_modal_submission_fetches_channel_when_not_cached(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_process_modal_submission_fetches_channel_when_not_cached(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeMessageable:
         pass
 
@@ -80,11 +84,15 @@ async def test_process_modal_submission_fetches_channel_when_not_cached(monkeypa
 
     assert client.fetch_calls == 1
     assert channel.sent == ["テスト"]
-    assert interaction.response.messages[0]["content"] == SendMessageModal.SUCCESS_MESSAGE.format(channel_id=channel.id)
+    assert interaction.response.messages[0][
+        "content"
+    ] == SendMessageModal.SUCCESS_MESSAGE.format(channel_id=channel.id)
 
 
 @pytest.mark.asyncio
-async def test_process_modal_submission_handles_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_process_modal_submission_handles_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeNotFound(Exception):
         pass
 
@@ -100,15 +108,22 @@ async def test_process_modal_submission_handles_not_found(monkeypatch: pytest.Mo
         message_value="テスト",
     )
 
-    assert interaction.response.messages[0]["content"] == SendMessageModal.ERROR_CHANNEL_NOT_FOUND
+    assert (
+        interaction.response.messages[0]["content"]
+        == SendMessageModal.ERROR_CHANNEL_NOT_FOUND
+    )
 
 
 @pytest.mark.asyncio
-async def test_process_modal_submission_handles_http_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_process_modal_submission_handles_http_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeHTTPException(Exception):
         pass
 
-    monkeypatch.setattr(view_module.discord, "HTTPException", FakeHTTPException, raising=False)
+    monkeypatch.setattr(
+        view_module.discord, "HTTPException", FakeHTTPException, raising=False
+    )
 
     client = ClientStub()
     interaction = InteractionStub(client)
@@ -124,7 +139,9 @@ async def test_process_modal_submission_handles_http_exception(monkeypatch: pyte
 
 
 @pytest.mark.asyncio
-async def test_process_modal_submission_rejects_non_messageable_channel(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_process_modal_submission_rejects_non_messageable_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeMessageable:
         pass
 
@@ -144,4 +161,7 @@ async def test_process_modal_submission_rejects_non_messageable_channel(monkeypa
         message_value="テスト",
     )
 
-    assert interaction.response.messages[0]["content"] == SendMessageModal.ERROR_CHANNEL_NOT_FOUND
+    assert (
+        interaction.response.messages[0]["content"]
+        == SendMessageModal.ERROR_CHANNEL_NOT_FOUND
+    )
