@@ -1,4 +1,4 @@
-# clover_announcement_bot Git 運用基準
+# announcement_bot Git 運用基準
 
 ## 目的
 - コミット、ブランチ、プルリクエスト運用を統一し、履歴とレビュー品質を維持する。

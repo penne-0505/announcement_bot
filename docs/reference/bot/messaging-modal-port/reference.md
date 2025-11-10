@@ -53,7 +53,7 @@ related_intents:
 - `.env` が存在しない場合は `python-dotenv` が例外を投げるため、README 手順で必ず作成する。
 
 ## 実行スクリプト
-- `poetry run clover-announcement-bot`
+- `poetry run announcement-bot`
   - `src/main.py` の `main()` を呼び出し、ログレベル `INFO` で起動する。
 - 代替: `poetry run python -m src.main`
 

@@ -7,11 +7,11 @@ created: "2025-11-09"
 updated: "2025-11-09"
 related_plan: "docs/plan/bot/messaging-modal-port/plan.md"
 owners:
-  - "clover announcement bot maintainers"
+  - "announcement bot maintainers"
 ---
 
 ## 背景
-- `ds_rin_bot` に実装済みの `/setup` + モーダル UI を clover 側にも導入し、告知メッセージを柔軟に送れるようにする必要があった。
+- `ds_rin_bot` に実装済みの `/setup` + モーダル UI を 側にも導入し、告知メッセージを柔軟に送れるようにする必要があった。
 - 当リポジトリにはアプリケーションコードが存在しなかったため、`src/` 階層と設定読み込み〜エントリポイントを一式整備する必要があった。
 
 ## 決定事項

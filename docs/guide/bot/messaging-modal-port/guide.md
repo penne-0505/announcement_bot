@@ -18,7 +18,7 @@ references:
 ## 事前準備
 1. `DISCORD_BOT_TOKEN` を `.env` で定義し、Bot を Discord サーバーに参加させる。
 2. Bot に対象チャンネルへの送信権限 (Send Messages) を付与しておく。
-3. `poetry run clover-announcement-bot` で起動し、ログに `準備完了` が出力されていることを確認する。
+3. `poetry run announcement-bot` で起動し、ログに `準備完了` が出力されていることを確認する。
 
 ## 利用手順
 1. Discord サーバーで `/setup` を実行する。

@@ -1,4 +1,4 @@
-# clover_announcement_bot
+# announcement_bot
 
 Discord 上で告知メッセージを安全に配信するための最小限の Slash コマンド `/setup` とメッセージ送信モーダルを提供します。
 
@@ -14,7 +14,7 @@ Discord 上で告知メッセージを安全に配信するための最小限の
    ```
 3. Bot を起動します。
    ```bash
-   poetry run clover-announcement-bot
+   poetry run announcement-bot
    # もしくは
    poetry run python -m src.main
    ```

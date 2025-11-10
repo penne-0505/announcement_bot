@@ -1,4 +1,4 @@
-# clover_announcement_bot プロジェクト ドキュメント整備指針
+# announcement_bot プロジェクト ドキュメント整備指針
 
 > **ドキュメンテーションでわからないことがあれば、まずこのファイルを確認してください。**
 >
@@ -6,7 +6,7 @@
 
 ## 概要
 
-本指針は、clover_announcement_botプロジェクトにおけるドキュメント作成・管理・メンテナンスの統一的な方針を定めるものです。運用プロセスや自動化の詳細は `docs/standards/documentation_operations.md` を参照し、本書では日々の執筆・レビューの実務指針にフォーカスします。
+本指針は、announcement_botプロジェクトにおけるドキュメント作成・管理・メンテナンスの統一的な方針を定めるものです。運用プロセスや自動化の詳細は `docs/standards/documentation_operations.md` を参照し、本書では日々の執筆・レビューの実務指針にフォーカスします。
 
 ## 関連ドキュメント
 - `docs/standards/documentation_operations.md`: draft/plan を中心とした運用ルールと自動化ロードマップ

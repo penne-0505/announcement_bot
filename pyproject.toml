@@ -1,5 +1,5 @@
 [project]
-name = "clover-announcement-bot"
+name = "announcement-bot"
 version = "0.1.0"
 description = ""
 authors = [
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-clover-announcement-bot = "app.runtime:main"
+announcement-bot = "app.runtime:main"
 
 [tool.poetry]
 packages = [

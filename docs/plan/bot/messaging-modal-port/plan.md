@@ -14,7 +14,7 @@ references:
   - "ds_rin_bot/src/app/config.py#L14-L118"
   - "ds_rin_bot/src/main.py#L12-L34"
 scope:
-  - "discord.py 2.6 系を用いたクライアント初期化・コマンド登録の最小構成を clover_announcement_bot に導入する"
+  - "discord.py 2.6 系を用いたクライアント初期化・コマンド登録の最小構成を announcement_bot に導入する"
   - "ds_rin_bot のメッセージ送信モーダル UI と /setup コマンドの体験を同等レベルで再現する"
   - "環境変数ベースのトークン読み込みとエラー通知のロギング基盤を整備する"
 non_goals:
@@ -54,17 +54,17 @@ i18n_a11y:
   - "UI テキストは現状どおり日本語で統一し、ボタン/モーダルのラベルは 20 文字以内を維持する"
   - "エラーメッセージはすべて ephemeral メッセージで返し、コマンド利用者以外に見えないようにする"
 acceptance_criteria:
-  - "clover_announcement_bot で `/setup` が成功し、モーダルを開ける"
+  - "announcement_bot で `/setup` が成功し、モーダルを開ける"
   - "有効なチャンネル ID で送信すると対象チャンネルへメッセージが投稿され、成功通知が ephemeral で返る"
   - "無効な ID・アクセス不可チャンネル・例外発生時に ds_rin_bot 同等のエラーメッセージが表示される"
 owners:
-  - "clover announcement bot maintainers"
+  - "announcement bot maintainers"
 ---
 
 ## 背景と目的
 
 - `ds_rin_bot` では `/setup` コマンドから `SendModalView` を掲出し、任意のチャンネルへテキスト送信できるモーダルを提供している（`src/views/view.py#L11-L80`, `src/bot/commands.py#L24-L37`）。  
-- `clover_announcement_bot` はまだ Discord クライアントやコマンド登録の実装が存在せず、告知メッセージを柔軟に送信するための UI が欠落している。  
+- `announcement_bot` はまだ Discord クライアントやコマンド登録の実装が存在せず、告知メッセージを柔軟に送信するための UI が欠落している。  
 - 本計画は、メッセージ送信機能を最小の基盤ごと移植し、後続の機能追加に再利用できる構造を整備することを目的とする。
 
 ## 既存実装の要点 (ds_rin_bot)
@@ -78,7 +78,7 @@ owners:
 
 これらは互いに疎結合であり、メッセージ送信モーダルだけであれば Temp VC や Bridge のモジュールに依存しない。
 
-## ターゲットアーキテクチャ (clover_announcement_bot)
+## ターゲットアーキテクチャ (announcement_bot)
 
 1. **アプリ階層**
    - `src/app/config.py`: `.env` からトークンを読む最小構成 (`DiscordSettings`, `AppConfig`, `load_config`)。
