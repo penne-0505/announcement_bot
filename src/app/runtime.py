@@ -18,7 +18,11 @@ async def run_bot() -> None:
         LOGGER.exception("設定ファイルの読み込みに失敗しました。")
         return
 
-    app = await build_discord_app(config)
+    try:
+        app = await build_discord_app(config)
+    except Exception:  # pragma: no cover - 起動時例外は稀
+        LOGGER.exception("Discord アプリケーションの初期化に失敗しました。")
+        return
     await app.run()
 
 
