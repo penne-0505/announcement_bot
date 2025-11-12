@@ -3,7 +3,7 @@ import types
 import pytest
 
 from bot import register_commands
-from views import SendModalView
+from views import NicknameSyncSetupView, SendModalView
 
 
 class FakeResponse:
@@ -14,8 +14,8 @@ class FakeResponse:
     async def defer(self, *, ephemeral: bool = False) -> None:
         self.deferred_ephemeral = ephemeral
 
-    async def send_message(self, content: str, *, ephemeral: bool = False) -> None:
-        self.sent.append({"content": content, "ephemeral": ephemeral})
+    async def send_message(self, content: str, *, view=None, ephemeral: bool = False) -> None:
+        self.sent.append({"content": content, "view": view, "ephemeral": ephemeral})
 
 
 class FakeFollowup:
@@ -63,53 +63,20 @@ async def test_register_commands_registers_setup_and_sends_view() -> None:
     assert isinstance(interaction.followup.sent[0]["view"], SendModalView)
 
 
-class FakeChannel:
-    def __init__(self, guild_id: int = 1, channel_id: int = 50) -> None:
-        self.id = channel_id
-        self.guild = types.SimpleNamespace(id=guild_id)
-        self.mention = f"<#{channel_id}>"
-
-
-class FakeRole:
-    def __init__(self, guild_id: int = 1, role_id: int = 70) -> None:
-        self.id = role_id
-        self.guild = types.SimpleNamespace(id=guild_id)
-        self.mention = f"<@&{role_id}>"
-
-
-class FakeRuleStore:
-    def __init__(self) -> None:
-        self.calls: list[dict[str, int]] = []
-
-    async def upsert_rule(self, guild_id: int, channel_id: int, role_id: int, updated_by: int):
-        self.calls.append(
-            {
-                "guild_id": guild_id,
-                "channel_id": channel_id,
-                "role_id": role_id,
-                "updated_by": updated_by,
-            }
-        )
-
-
 @pytest.mark.asyncio
-async def test_nickname_guard_command_invokes_rule_store_and_replies_ephemeral() -> None:
+async def test_nickname_sync_setup_command_returns_view() -> None:
     tree = FakeCommandTree()
     client = types.SimpleNamespace(tree=tree)
-    rule_store = FakeRuleStore()
+    rule_store = object()
 
     await register_commands(client, rule_store=rule_store)
+    assert "nickname_sync_setup" in tree.registered
 
     interaction = FakeInteraction(guild_id=999, user_id=123)
-    channel = FakeChannel(guild_id=999, channel_id=456)
-    role = FakeRole(guild_id=999, role_id=777)
+    await tree.registered["nickname_sync_setup"]["callback"](interaction)
 
-    await tree.registered["nickname_guard"]["callback"](interaction, channel, role)
-
-    assert rule_store.calls[0] == {
-        "guild_id": 999,
-        "channel_id": 456,
-        "role_id": 777,
-        "updated_by": 123,
-    }
     assert interaction.response.sent[0]["ephemeral"] is True
+    view = interaction.response.sent[0]["view"]
+    assert isinstance(view, NicknameSyncSetupView)
+    assert view.executor_id == 123
+    assert view.guild_id == 999

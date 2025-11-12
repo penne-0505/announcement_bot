@@ -10,19 +10,26 @@ related_intents:
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
 ---
 
-## Slash コマンド `/nickname_guard`
+## Slash コマンド `/nickname_sync_setup`
 | 項目 | 内容 |
 | --- | --- |
-| name | `nickname_guard` |
-| description | `監視チャンネルとロールを設定し、自動ニックネーム同期を有効化します。` |
-| options | `channel: discord.TextChannel`, `role: discord.Role` (どちらも必須) |
+| name | `nickname_sync_setup` |
+| description | `View を通じて監視チャンネルとロールを選択し、自動ニックネーム同期を有効化します。` |
+| options | なし（View から選択） |
 | default_permissions | `discord.Permissions(manage_roles=True, manage_messages=True)` |
-| 応答 | 設定内容を日本語でまとめた ephemeral メッセージ |
+| 応答 | View を含む ephemeral メッセージ |
 
 ### バリデーション
 - DM からの実行は禁止 (`interaction.guild_id is None`)。
-- 指定したチャンネル/ロールが別ギルドのものだった場合はエラーを返す。
-- 成功時は `channel_nickname_rules` へ upsert し、結果ログを `INFO` で出力。
+- View の interaction は実行者以外には受け付けず、権限を持たないメンバーが操作してもエラーを返す。
+- チャンネル/ロール選択後に「設定を保存」ボタンを押すと `channel_nickname_rules` へ upsert し、結果ログを `INFO` で出力。
+- ChannelSelect は Text/Announcement チャンネルのみ選択可能、RoleSelect は 1 件のみ選択可能。
+
+## `views.nickname_sync_setup.NicknameSyncSetupView`
+- `ChannelSelect` と `RoleSelect` を 1 つずつ提供し、選択結果を View に保存する。
+- `interaction_check` でコマンド実行者以外の操作をブロックし、エラーを ephemeral で返す。
+- `Confirm` ボタン押下時に選択が揃っていなければエラーを返し、揃っていれば `ChannelNicknameRuleRepository.upsert_rule` を呼び出す。
+- 成功時は `<#channel>`/`<@&role>` を含むメッセージを返信し、View を停止する。
 
 ## データモデル: `channel_nickname_rules`
 | カラム | 型 | 説明 |
@@ -57,4 +64,3 @@ related_intents:
 - Slash コマンド: 入力不備や権限不足は `interaction.response.send_message(..., ephemeral=True)` で即時通知。
 - DB: 接続エラーは `LOGGER.exception` 後にアプリ起動を中断。
 - メッセージ処理: 期待ロールが見つからない場合は WARN ログで設定の再登録を促す。
-

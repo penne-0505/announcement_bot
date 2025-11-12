@@ -2,7 +2,7 @@
 title: "ニックネーム自動同期チャンネル計画"
 domain: "bot"
 status: "draft"
-version: "0.1.0"
+version: "0.2.0"
 created: "2025-11-12"
 updated: "2025-11-12"
 related_issues: []
@@ -11,7 +11,7 @@ references:
   - "docs/guide/bot/messaging-modal-port/guide.md"
   - "docs/reference/bot/messaging-modal-port/reference.md"
 scope:
-  - "Slash コマンドでチャンネルとロールを指定し、ニックネーム同期対象として登録できるようにする"
+  - "Slash コマンド実行後に View(UI) を介してチャンネルとロールを選択し、ニックネーム同期対象として登録できるようにする"
   - "登録情報を PostgreSQL に永続化し、Railway の Postgres アドオンでホストする"
   - "対象チャンネルで投稿されたメッセージを検知し、投稿者のニックネームでメッセージ本文を上書きする"
   - "同時に指定ロールを投稿者へ自動付与する"
@@ -27,19 +27,19 @@ constraints:
   - "Railway 上の `DATABASE_URL` を利用する。明示的なマイグレーションツールは導入しない"
   - "discord.py 2.6 系の API に沿って Message Intent を有効化しておく必要がある"
 api_changes:
-  - "Slash コマンド `/setup` に加えて、新たに `/nickname_guard` (仮称) を追加する"
+  - "Slash コマンド `/setup` に加えて、設定用の `/nickname_sync_setup` を追加し、View でチャンネル/ロールを取得する"
 data_models:
   - "`channel_nickname_rules` テーブル (guild_id, channel_id, role_id, updated_by, updated_at)"
 migrations:
   - "アプリ起動時に `CREATE TABLE IF NOT EXISTS` を実行してスキーマを用意する"
 rollout_plan:
   - "ローカルで PostgreSQL (Railway or docker) を使ってテーブル作成を確認後、本番 Railway にデプロイ"
-  - "本番ギルドで `/nickname_guard` を実行し、実際にメッセージ編集・ロール付与を検証"
+  - "本番ギルドで `/nickname_sync_setup` を実行し、View から設定 → メッセージ編集・ロール付与を検証"
 rollback:
   - "Railway 側で Bot を停止し、`channel_nickname_rules` を空にすれば既存挙動へ戻る"
   - "コード面では該当モジュールを revert すれば既存 `/setup` のみの状態へ戻せる"
 test_plan:
-  - "Slash コマンド登録と引数検証のユニットテスト (モック interaction)"
+  - "Slash コマンド登録と View 付与を確認するユニットテスト (モック interaction)"
   - "メッセージ編集・ロール付与ロジックのユニットテスト (スタブ message/member)"
   - "DB リポジトリは最小限の統合テストではなく、接続失敗時のログ確認に留める"
 observability:
@@ -52,7 +52,7 @@ performance_budget:
 i18n_a11y:
   - "コマンド説明・エラーメッセージは日本語で統一し、ロール・チャンネル Mention を利用して視認性を確保"
 acceptance_criteria:
-  - "Slash コマンドでチャンネルとロールを登録すると成功メッセージが戻る"
+  - "`/nickname_sync_setup` → View からチャンネル/ロールを選択して登録すると成功メッセージが戻る"
   - "対象チャンネルに投稿するとメッセージが投稿者ニックネームに上書きされる"
   - "投稿者に指定ロールが自動付与される (既に付与済みならスキップ)"
 owners:
@@ -75,7 +75,7 @@ owners:
 | `app.database` | asyncpg プールを管理し、起動時にテーブルを自動作成 |
 | `app.repositories.channel_rules` | `channel_nickname_rules` テーブルへの Upsert/Select を提供 |
 | `bot.client` | `BotClient` がリポジトリを保持し、`on_message` で設定参照 |
-| `bot.commands` | `/nickname_guard` コマンドを登録し、ギルド限定で設定を書き込む |
+| `bot.commands` | `/nickname_sync_setup` コマンドを登録し、ギルド限定で View を返す |
 | `bot.handlers` (新設) | メッセージ編集とロール付与ロジックを切り出し、テストを容易にする |
 
 ## 実装ステップ
@@ -83,7 +83,7 @@ owners:
 2. `app.config` に Database 設定を追加し、`app.database` でプール初期化＋テーブル作成を行う。
 3. `app.repositories.channel_rules` を新設し、`upsert_rule`・`get_rule_for_channel` を実装する。
 4. `BotClient` にリポジトリとメッセージハンドラを紐付け、`register_commands` へ新 Slash コマンドを追加する。
-5. `/nickname_guard` のバリデーション (ギルド限定・cross guild 防止) と成功メッセージを実装する。
+5. `/nickname_sync_setup` の View (ChannelSelect / RoleSelect + ボタン) を実装し、ギルド限定で動作させる。
 6. メッセージ監視ロジックをユニットテストし、Slash コマンドのモックテストを追加する。
 7. README / docs (intent, guide, reference) を更新し、Rollout/検証手順を追記する。
 
@@ -94,4 +94,3 @@ owners:
 | 自動編集ループ | Bot の編集が再検知 → API ループ | Bot 投稿は `message.author.bot` で即 return し、編集前後が同じ場合は edit をスキップ |
 | 権限不足でロール付与失敗 | 運用想定を満たせない | Forbidden/HTTPException をログ出力し、運用ガイドで Bot ロール位置要件を明記 |
 | Slash コマンド乱用 | 意図しないチャンネルが上書きされる | 役職 `Manage Roles` 権限者のみ実行可能にし、結果を必ず ephemeral で通知 |
-

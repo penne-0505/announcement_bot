@@ -2,7 +2,7 @@
 title: "ニックネーム自動同期 Intent"
 domain: "bot"
 status: "active"
-version: "0.1.0"
+version: "0.2.0"
 created: "2025-11-12"
 updated: "2025-11-12"
 related_plan: "docs/plan/bot/channel-nickname-role-sync/plan.md"
@@ -16,7 +16,7 @@ owners:
 - 既存 `/setup` はモーダル送信のみで、チャンネル監視やロール操作の仕組みがなかった。
 
 ## 決定事項
-1. **Slash コマンド**: `/nickname_guard` を追加し、ギルド内で監視チャンネルと付与ロールを設定できるようにした。実行者には Manage Roles 権限を要求し、結果を ephemeral で通知する。
+1. **Slash コマンド**: `/nickname_sync_setup` を追加し、ギルド内で View (ChannelSelect + RoleSelect) を通じて監視チャンネルと付与ロールを設定できるようにした。実行者には Manage Roles 権限を要求し、結果を ephemeral で通知する。
 2. **永続化**: PostgreSQL (Railway) に `channel_nickname_rules` テーブルを作成し、`guild_id + channel_id` 主キーで設定を upsert する。asyncpg プールは `app.database.Database` が管理する。
 3. **メッセージ処理**: `bot.handlers.enforce_nickname_and_role` を新設し、監視対象チャンネルでの投稿をニックネームへ編集し、指定ロールを自動付与する。Bot 自身の投稿やメッセージ内容が既に一致する場合は処理をスキップする。
 4. **エラーハンドリング**: メッセージ編集・ロール付与が Forbidden / HTTPException の場合はロガーに警告を出す。ロール未取得時も WARN ログで気づけるようにする。

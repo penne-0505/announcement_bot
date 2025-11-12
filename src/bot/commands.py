@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from app.repositories import ChannelNicknameRuleStore
-from views import SendModalView
+from views import NicknameSyncSetupView, SendModalView
 
 if TYPE_CHECKING:
     from bot.client import BotClient
@@ -33,19 +33,13 @@ async def register_commands(client: "BotClient", *, rule_store: ChannelNicknameR
         )
 
     @tree.command(
-        name="nickname_guard",
-        description="監視チャンネルを登録し、投稿内容をニックネームに揃えます。",
-    )
-    @discord.app_commands.describe(
-        channel="監視対象のチャンネル",
-        role="自動付与するロール",
+        name="nickname_sync_setup",
+        description="ニックネーム同期チャンネルの設定ビューを表示します。",
     )
     @discord.app_commands.default_permissions(manage_roles=True, manage_messages=True)
     @discord.app_commands.guild_only()
-    async def command_nickname_guard(
+    async def command_nickname_sync_setup(
         interaction: discord.Interaction,
-        channel: discord.TextChannel,
-        role: discord.Role,
     ) -> None:  # pragma: no cover - decorator により Discord 側で実行
         guild_id = interaction.guild_id
         if guild_id is None:
@@ -55,36 +49,20 @@ async def register_commands(client: "BotClient", *, rule_store: ChannelNicknameR
             )
             return
 
-        if channel.guild is None or channel.guild.id != guild_id:
-            await interaction.response.send_message(
-                "同じサーバー内のチャンネルを指定してください。",
-                ephemeral=True,
-            )
-            return
-
-        if role.guild is None or role.guild.id != guild_id:
-            await interaction.response.send_message(
-                "同じサーバー内のロールを指定してください。",
-                ephemeral=True,
-            )
-            return
-
-        await rule_store.upsert_rule(
+        view = NicknameSyncSetupView(
             guild_id=guild_id,
-            channel_id=channel.id,
-            role_id=role.id,
-            updated_by=interaction.user.id,
+            executor_id=interaction.user.id,
+            rule_store=rule_store,
         )
         LOGGER.info(
-            "ニックネーム同期設定を更新しました: guild=%s channel=%s role=%s executor=%s",
+            "/nickname_sync_setup コマンドを実行したユーザー: guild=%s user=%s",
             guild_id,
-            channel.id,
-            role.id,
             interaction.user.id,
         )
 
         await interaction.response.send_message(
-            f"{channel.mention} を監視対象に設定し、{role.mention} を自動付与します。",
+            "🛠 監視するチャンネルと付与ロールを以下の View から選択してください。",
+            view=view,
             ephemeral=True,
         )
 
