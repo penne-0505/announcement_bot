@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-11-12"
+updated: "2025-11-13"
 related_plan:
   - "docs/plan/bot/messaging-modal-port/plan.md"
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
@@ -113,10 +113,10 @@ references:
 ## テストカバレッジ
 | テスト | 対象 | 概要 |
 | --- | --- | --- |
-| `tests/views/test_send_message_modal.py` | モーダルの入力検証 | ID 変換、フェッチ成功/失敗、非 Messageable 判定など。 |
+| `tests/views/test_send_message_modal.py` | モーダルの入力検証 | ID 変換、キャッシュ済み/フェッチ経路での送信成功、各種エラー、非 Messageable 判定。 |
 | `tests/bot/test_commands.py` | Slash コマンド | `/setup` の View 返却と `/nickname_sync_setup` の View パラメータ検証。 |
-| `tests/views/test_nickname_sync_setup_view.py` | View 単体 | 選択必須、成功時 upsert、他ユーザー拒否。 |
-| `tests/bot/test_handlers.py` | ニックネーム同期処理 | メッセージ編集 + ロール付与成功/失敗パターン。 |
+| `tests/views/test_nickname_sync_setup_view.py` | View 単体 | 選択必須、成功時 upsert、操作権限の許可/拒否パターン。 |
+| `tests/bot/test_handlers.py` | ニックネーム同期処理 | メッセージ編集、ロール未設定/既存ロール時の分岐、表示名フォールバックの確認。 |
 
 ## 運用メモ
 - Railway では `DATABASE_URL` を環境変数で提供し、Postgres 停止時は Bot を再起動して再接続する（自動リトライは未実装）。

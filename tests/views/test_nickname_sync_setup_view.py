@@ -82,3 +82,15 @@ async def test_interaction_check_blocks_other_users() -> None:
 
     assert allowed is False
     assert interaction.response.messages[0]["content"] == view.ERROR_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_interaction_check_allows_executor() -> None:
+    rule_store = RuleStoreStub()
+    view = NicknameSyncSetupView(guild_id=1, executor_id=10, rule_store=rule_store)
+    interaction = InteractionStub(user_id=10)
+
+    allowed = await view.interaction_check(interaction)
+
+    assert allowed is True
+    assert interaction.response.messages == []
