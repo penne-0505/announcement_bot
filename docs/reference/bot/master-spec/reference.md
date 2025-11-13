@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-11-12"
+updated: "2025-11-13"
 related_plan:
   - "docs/plan/bot/messaging-modal-port/plan.md"
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
@@ -35,7 +35,9 @@ references:
 
 ## 実行環境と依存
 - Python 3.12 系 (`pyproject.toml`)。
-- 主要ライブラリ: `discord-py>=2.6.4`, `python-dotenv>=1.1.0`, `asyncpg>=0.29.0`, `pytest`, `pytest-asyncio`。
+- 主要ライブラリ: `discord-py>=2.6.4`, `python-dotenv>=1.1.0`, `asyncpg>=0.29.0`, `pytest`。
+- テストランナー設定: ルートの `conftest.py` で最小イベントループハンドラを提供し、`pytest.mark.asyncio` テストを外部プラグイ
+ンなしで実行できる。
 - CLI 起動方法:
   - `poetry run announcement-bot`
   - `poetry run python -m src.main`

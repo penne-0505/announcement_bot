@@ -30,6 +30,9 @@ optional = true
 pytest = ">=8.2,<9.0"
 pytest-asyncio = ">=0.25,<0.26"
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
