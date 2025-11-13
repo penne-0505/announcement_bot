@@ -4,7 +4,7 @@ domain: "bot"
 status: "beta"
 version: "0.1.0"
 created: "2025-11-09"
-updated: "2025-11-09"
+updated: "2025-11-13"
 related_plan: "docs/plan/bot/messaging-modal-port/plan.md"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
@@ -58,5 +58,5 @@ related_intents:
 - 代替: `poetry run python -m src.main`
 
 ## テストカバレッジ
-- `tests/views/test_send_message_modal.py`: 入力検証とエラー分岐。
+- `tests/views/test_send_message_modal.py`: ID 変換、キャッシュ済み/フェッチ経路の成功パターン、各種エラー分岐、非 Messageable 判定。
 - `tests/bot/test_commands.py`: Slash コマンド登録と View 返却の検証。

@@ -165,3 +165,39 @@ async def test_process_modal_submission_rejects_non_messageable_channel(
         interaction.response.messages[0]["content"]
         == SendMessageModal.ERROR_CHANNEL_NOT_FOUND
     )
+
+
+@pytest.mark.asyncio
+async def test_process_modal_submission_uses_cached_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeMessageable:
+        pass
+
+    class FakeChannel(FakeMessageable):
+        def __init__(self) -> None:
+            self.id = 321
+            self.sent: list[str] = []
+
+        async def send(self, content: str) -> None:
+            self.sent.append(content)
+
+    monkeypatch.setattr(view_module, "Messageable", FakeMessageable)
+
+    client = ClientStub()
+    channel = FakeChannel()
+    client.channel_to_return = channel
+    interaction = InteractionStub(client)
+
+    await view_module.process_modal_submission(
+        interaction,
+        channel_id_value=str(channel.id),
+        message_value="cached",
+    )
+
+    assert client.fetch_calls == 0
+    assert channel.sent == ["cached"]
+    assert (
+        interaction.response.messages[0]["content"]
+        == SendMessageModal.SUCCESS_MESSAGE.format(channel_id=channel.id)
+    )
