@@ -4,6 +4,7 @@ from datetime import datetime
 import pytest
 
 from app.repositories import ChannelNicknameRule
+from bot import handlers as handlers_module
 from bot.handlers import enforce_nickname_and_role
 
 
@@ -90,3 +91,59 @@ async def test_enforce_skips_when_role_missing() -> None:
 
     assert member.roles == []
     assert message.content == "Nick"
+
+
+@pytest.mark.asyncio
+async def test_enforce_skips_message_edit_when_already_matches() -> None:
+    role = FakeRole(role_id=70)
+    member = FakeMember(display_name="SameName")
+    guild = FakeGuild(guild_id=2, role=role)
+    message = FakeMessage(member, guild)
+    message.content = "SameName"
+    rule = ChannelNicknameRule(
+        guild_id=2,
+        channel_id=99,
+        role_id=70,
+        updated_by=1,
+        updated_at=datetime.now(),
+    )
+
+    await enforce_nickname_and_role(message, rule)
+
+    assert message.edits == []
+    assert member.roles[0] is role
+
+
+@pytest.mark.asyncio
+async def test_enforce_skips_role_assignment_if_member_already_has_role() -> None:
+    role = FakeRole(role_id=88)
+    member = FakeMember(display_name="NewNick")
+    member.roles.append(role)
+    guild = FakeGuild(guild_id=5, role=role)
+    message = FakeMessage(member, guild)
+    rule = ChannelNicknameRule(
+        guild_id=5,
+        channel_id=99,
+        role_id=88,
+        updated_by=1,
+        updated_at=datetime.now(),
+    )
+
+    await enforce_nickname_and_role(message, rule)
+
+    assert message.content == "NewNick"
+    assert member.added == []
+
+
+def test_resolve_display_name_fallbacks() -> None:
+    member = types.SimpleNamespace(display_name="Display", global_name="Global", name="Name")
+    assert handlers_module._resolve_display_name(member) == "Display"
+
+    member = types.SimpleNamespace(display_name=None, global_name="Global", name="Name")
+    assert handlers_module._resolve_display_name(member) == "Global"
+
+    member = types.SimpleNamespace(display_name=None, global_name=None, name="Name")
+    assert handlers_module._resolve_display_name(member) == "Name"
+
+    member = types.SimpleNamespace(display_name=None, global_name=None, name=None)
+    assert handlers_module._resolve_display_name(member) == ""

@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-11-12"
+updated: "2025-11-13"
 related_plan:
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
 related_intents:
@@ -94,5 +94,5 @@ references:
 
 ## テスト
 - `tests/bot/test_commands.py`: `/nickname_sync_setup` が View を返却し、ギルド/ユーザー情報を保持することを検証。
-- `tests/views/test_nickname_sync_setup_view.py`: 選択必須・成功時 upsert・権限チェックをスタブで検証。
-- `tests/bot/test_handlers.py`: ニックネーム同期処理（メッセージ更新・ロール付与）をモックで検証。
+- `tests/views/test_nickname_sync_setup_view.py`: 選択必須・成功時 upsert・権限許可/拒否の双方をスタブで検証。
+- `tests/bot/test_handlers.py`: ニックネーム同期処理のメッセージ編集、ロール未設定/既存ロール時の挙動、表示名フォールバックをモックで検証。
