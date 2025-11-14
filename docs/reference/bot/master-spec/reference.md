@@ -4,34 +4,39 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-11-12"
+updated: "2025-11-14"
 related_plan:
   - "docs/plan/bot/messaging-modal-port/plan.md"
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
+  - "docs/plan/bot/temporary-voice-channels/plan.md"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
+  - "docs/intent/bot/temporary-voice-channels/intent.md"
 references:
   - "docs/guide/bot/messaging-modal-port/guide.md"
   - "docs/guide/bot/channel-nickname-role-sync/guide.md"
+  - "docs/guide/bot/temporary-voice-channels/guide.md"
 ---
 
 ## 目的
-- Clover 発表用 Discord サーバーで安全に告知文を投稿する `/setup` モーダル機能と、本人確認チャンネルのニックネーム同期 + ロール自動付与機能を恒久運用する。
+- Clover 発表用 Discord サーバーで安全に告知文を投稿する `/setup` モーダル機能、本人確認チャンネルのニックネーム同期 + ロール自動付与機能、一時的なボイスチャンネル (`/temporary_vc`) を恒久運用する。
 - 本書は 2025-11-12 時点のマスター仕様を定義し、コード・ドキュメントの整合性確認の基準とする。
 
 ## システム構成
 | モジュール | 役割 |
 | --- | --- |
 | `src/app/config.py` | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `DATABASE_URL` を読み込み、`AppConfig` を返す。 |
-| `src/app/database.py` | asyncpg プールを管理し、`channel_nickname_rules` テーブルを `CREATE TABLE IF NOT EXISTS` で自動作成する。 |
-| `src/app/container.py` | `Database` + `ChannelNicknameRuleRepository` を初期化し、`BotClient` とコマンド登録をセットで返す。 |
+| `src/app/database.py` | asyncpg プールを管理し、`channel_nickname_rules` / `temporary_vc_categories` / `temporary_voice_channels` を `CREATE TABLE IF NOT EXISTS` で自動作成する。 |
+| `src/app/container.py` | `Database` + 各 Repository を初期化し、`BotClient` とコマンド登録を `TemporaryVoiceChannelService` と合わせて返す。 |
 | `src/app/runtime.py` / `src/main.py` | ログ初期化の上で `build_discord_app` → `DiscordApplication.run()` を実行する CLI エントリポイント。 |
-| `src/bot/client.py` | `discord.Client` 拡張。`on_ready` で `tree.sync()`、`on_message` で監視チャンネルのハンドラを実行。 |
-| `src/bot/commands.py` | Slash コマンド `/setup` と `/nickname_sync_setup` を登録。 |
+| `src/bot/client.py` | `discord.Client` 拡張。`on_ready` で `tree.sync()` + 一時VCレコード同期、`on_message` で監視チャンネルハンドラ、`on_voice_state_update` で一時VC自動削除を行う。 |
+| `src/bot/commands.py` | Slash コマンド `/setup`, `/nickname_sync_setup`, `/temporary_vc` を登録。 |
 | `src/views/view.py` | `/setup` フローで利用する `SendModalView` / `SendMessageModal` を提供。 |
 | `src/views/nickname_sync_setup.py` | `/nickname_sync_setup` から呼び出す `NicknameSyncSetupView`（ChannelSelect + RoleSelect + 保存ボタン）。 |
 | `src/bot/handlers.py` | 監視対象チャンネル投稿をニックネームへ上書きし、ロールを付与する共通ロジック。 |
+| `src/app/repositories/temporary_voice.py` | 一時VCカテゴリ/チャンネルの永続化を行う。 |
+| `src/app/services/temporary_voice.py` | カテゴリ設定、VC 作成・削除、VoiceState 監視を統括する。 |
 
 ## 実行環境と依存
 - Python 3.12 系 (`pyproject.toml`)。
@@ -48,7 +53,7 @@ references:
 - `.env.example` に両変数を記載済み。`load_config()` は `dotenv` による `.env` 読み込み→環境変数優先の挙動。
 
 ## データモデル
-`channel_nickname_rules`（`src/app/database.py:64-77`）
+`channel_nickname_rules`（`src/app/database.py:64-94`）
 
 | カラム | 型 | 説明 |
 | --- | --- | --- |
@@ -63,11 +68,21 @@ references:
 - `upsert_rule(...)` は ON CONFLICT で role/updated_by/updated_at を更新。戻り値は dataclass。
 - `get_rule_for_channel(...)` でギルド + チャンネル単位の設定を取得。
 
+`temporary_vc_categories` / `temporary_voice_channels` (`src/app/database.py:80-98`)
+
+| テーブル | 目的 | 主なカラム |
+| --- | --- | --- |
+| `temporary_vc_categories` | ギルドごとの一時VCカテゴリ設定 | `guild_id PK`, `category_id`, `updated_by`, `updated_at` |
+| `temporary_voice_channels` | ユーザーごとの一時VC所有情報 | `guild_id`, `owner_user_id` (PK), `channel_id (NULL許容)`, `category_id`, `created_at`, `last_seen_at` |
+
+`TemporaryVoiceCategoryRepository` はカテゴリの upsert/get/delete を行い、`TemporaryVoiceChannelRepository` は VC レコードの `create_record` / `update_channel_id` / `get_by_owner` / `get_by_channel` / `purge_guild` / `touch_last_seen` を提供する。
+
 ## Slash コマンド仕様
 | name | 目的 | 権限 | 実装 |
 | --- | --- | --- | --- |
 | `/setup` | モーダル経由で任意チャンネルへ告知メッセージを送信 | 既定 (DM 不可) | `src/bot/commands.py:22-33` |
 | `/nickname_sync_setup` | 監視チャンネル/ロールを GUI で選択し、ニックネーム同期設定を保存 | Manage Roles + Manage Messages (guild only) | `src/bot/commands.py:35-67` |
+| `/temporary_vc` | 一時VCカテゴリ設定/作成/削除をサブコマンドで提供 | Manage Channels (`category` のみ) | `src/bot/commands.py:70-155` |
 
 ### `/setup`
 1. `interaction.response.defer(ephemeral=True)` で応答ウィンドウ確保。
@@ -84,6 +99,12 @@ references:
 3. `interaction_check` で実行者以外の操作を拒否し、`ERROR_UNAUTHORIZED` を表示。
 4. 保存成功で View を停止 (`View.stop()`)、ログに `guild/channel/role/executor` を INFO で残す。
 
+### `/temporary_vc`
+1. `temporary_vc category`: Manage Channels 権限必須。カテゴリを 1 つ指定して `TemporaryVoiceChannelService.configure_category()` を実行し、既存一時VCを削除した上で `temporary_vc_categories` を更新する。
+2. `temporary_vc create`: 一般メンバーが自分専用 VC をリクエスト。カテゴリ未設定時は警告、既存 VC がある場合は `<#channel>` を案内。新規作成時は `guild.create_voice_channel()` で所有者に `PermissionOverwrite(manage_channels=True, move_members=True, mute_members=True, deafen_members=True, connect=True, speak=True, stream=True, use_voice_activation=True, view_channel=True)` を付与する。
+3. `temporary_vc reset`: 所有者が self-service で VC とレコードを削除。見つからない場合は対象なしメッセージを返す。
+4. すべて guild-only コマンドで、応答は ephemeral。作成/削除結果は INFO/WARN/ERROR ログに出力される。
+
 ## モーダル / View 仕様
 | コンポーネント | ファイル | 要点 |
 | --- | --- | --- |
@@ -92,29 +113,33 @@ references:
 | `NicknameSyncSetupView` | `src/views/nickname_sync_setup.py:16-105` | ChannelSelect + RoleSelect + 保存ボタン。executor 固定、成功時に DB へ永続化。 |
 
 ## メッセージ監視フロー
-1. `BotClient` (`src/bot/client.py:13-53`) は `on_ready` で `self.tree.sync()` を実行し、`on_message` で以下を実施。
-2. 投稿がギルド外 or Bot 投稿の場合はスキップ。
-3. `ChannelNicknameRuleRepository.get_rule_for_channel()` を呼んで設定が存在すれば `enforce_nickname_and_role()` を await。
-4. `enforce_nickname_and_role` (`src/bot/handlers.py:13-58`):
+1. `BotClient` (`src/bot/client.py`) は `on_ready` で `tree.sync()` を実行し、`TemporaryVoiceChannelService.cleanup_orphaned_channels(self.guilds)` でレコードと実チャンネルの整合性を取る。
+2. `on_message` ではギルド外/Bot 投稿を除外し、`ChannelNicknameRuleRepository.get_rule_for_channel()` が見つかれば `enforce_nickname_and_role()` を実行。
+3. `enforce_nickname_and_role` (`src/bot/handlers.py:13-58`):
    - 表示名 (`display_name`→`global_name`→`name`) と本文が異なる場合は `message.edit(content=display_name, allowed_mentions=AllowedMentions.none())`。
    - ギルドから対象ロールを取得し、未付与なら `member.add_roles(role, reason="Nickname guard auto assignment")`。
    - Forbidden/HTTPException は WARN ログを残し処理継続。
+4. `on_voice_state_update` は `TemporaryVoiceChannelService.handle_voice_state_update(member, before.channel, after.channel)` を呼び、
+    - `before.channel` の `members` が空で管理対象レコードがあれば `channel.delete(reason="Temporary voice channel expired")` → レコード削除。
+    - `after.channel` が管理対象なら `touch_last_seen()` で滞在情報を更新。
 
 ## 権限・前提
 - Bot には **Send Messages / Manage Messages / Manage Roles** 権限、かつ付与対象ロールより上位のロール階層が必要。
 - `/nickname_sync_setup` は Manage Roles + Manage Messages 権限を持つメンバーのみ実行可能 (`@discord.app_commands.default_permissions`)。
-- Intents は `discord.Intents.all()` で初期化しているため、Bot ポータル側でも Message Content Intent を有効化する。
+- `/temporary_vc category` は Manage Channels 権限を要求し、Voice State Intent が Bot/Portal の両方で有効になっている必要がある。`create`/`reset` はギルド内であれば誰でも実行できる。
+- Intents は `discord.Intents.all()` で初期化しているため、Bot ポータル側でも Message Content Intent/Voice State Intent を有効化する。
 
 ## エラーハンドリング & ログ
 - 設定読み込み失敗は `src/app/runtime.py:12-27` で例外ログを出して終了。
 - DB 接続/テーブル作成に失敗すると `Database.connect()` 内で例外が送出され、上位で捕捉→ログ (`src/app/runtime.py:18-27`)。
 - Slash コマンド／View／ハンドラはすべてエラーを `interaction.response.send_message(..., ephemeral=True)` で通知し、詳細は LOGGER(INFO/WARNING/ERROR) へ記録。
+- 一時VCでは Discord API 失敗時にレコードを削除してロールバックし、カテゴリが削除されていた場合は WARN ログで再設定を促す。
 
 ## テストカバレッジ
 | テスト | 対象 | 概要 |
 | --- | --- | --- |
 | `tests/views/test_send_message_modal.py` | モーダルの入力検証 | ID 変換、フェッチ成功/失敗、非 Messageable 判定など。 |
-| `tests/bot/test_commands.py` | Slash コマンド | `/setup` の View 返却と `/nickname_sync_setup` の View パラメータ検証。 |
+| `tests/bot/test_commands.py` | Slash コマンド | `/setup` View, `/nickname_sync_setup` View, `/temporary_vc` のカテゴリ/作成/削除応答をモック検証。 |
 | `tests/views/test_nickname_sync_setup_view.py` | View 単体 | 選択必須、成功時 upsert、他ユーザー拒否。 |
 | `tests/bot/test_handlers.py` | ニックネーム同期処理 | メッセージ編集 + ロール付与成功/失敗パターン。 |
 

@@ -73,6 +73,23 @@ class Database:
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (guild_id, channel_id)
         );
+
+        CREATE TABLE IF NOT EXISTS temporary_vc_categories (
+            guild_id BIGINT PRIMARY KEY,
+            category_id BIGINT NOT NULL,
+            updated_by BIGINT NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS temporary_voice_channels (
+            guild_id BIGINT NOT NULL,
+            owner_user_id BIGINT NOT NULL,
+            channel_id BIGINT,
+            category_id BIGINT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (guild_id, owner_user_id)
+        );
         """
         await self.execute(schema_sql)
 

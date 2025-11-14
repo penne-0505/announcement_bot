@@ -5,7 +5,12 @@ from dataclasses import dataclass
 
 from app.config import AppConfig
 from app.database import Database
-from app.repositories import ChannelNicknameRuleRepository
+from app.repositories import (
+    ChannelNicknameRuleRepository,
+    TemporaryVoiceCategoryRepository,
+    TemporaryVoiceChannelRepository,
+)
+from app.services import TemporaryVoiceChannelService
 from bot import BotClient, register_commands
 
 LOGGER = logging.getLogger(__name__)
@@ -35,9 +40,15 @@ async def build_discord_app(config: AppConfig) -> DiscordApplication:
     database = Database(config.database.url)
     await database.connect()
     rule_repository = ChannelNicknameRuleRepository(database)
+    temporary_category_repo = TemporaryVoiceCategoryRepository(database)
+    temporary_channel_repo = TemporaryVoiceChannelRepository(database)
+    temporary_voice_service = TemporaryVoiceChannelService(
+        category_repo=temporary_category_repo,
+        channel_repo=temporary_channel_repo,
+    )
 
-    client = BotClient(rule_store=rule_repository)
-    await register_commands(client, rule_store=rule_repository)
+    client = BotClient(rule_store=rule_repository, temporary_voice_service=temporary_voice_service)
+    await register_commands(client, rule_store=rule_repository, temporary_voice_service=temporary_voice_service)
     LOGGER.info("Discord クライアントの初期化が完了し、コマンドを登録しました。")
     return DiscordApplication(client=client, token=config.discord.token, database=database)
 

@@ -8,8 +8,8 @@ updated: "2025-11-12"
 related_issues: []
 related_prs: []
 references:
-  - "docs/guide/bot/messaging-modal-port/guide.md"
-  - "docs/reference/bot/messaging-modal-port/reference.md"
+  - "docs/guide/bot/channel-nickname-role-sync/guide.md"
+  - "docs/reference/bot/channel-nickname-role-sync/reference.md"
 scope:
   - "Slash コマンド実行後に View(UI) を介してチャンネルとロールを選択し、ニックネーム同期対象として登録できるようにする"
   - "登録情報を PostgreSQL に永続化し、Railway の Postgres アドオンでホストする"
