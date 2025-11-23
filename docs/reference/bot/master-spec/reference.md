@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-11-14"
+updated: "2025-11-23"
 related_plan:
   - "docs/plan/bot/messaging-modal-port/plan.md"
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
@@ -34,7 +34,7 @@ references:
 | `src/bot/commands.py` | Slash コマンド `/setup`, `/nickname_sync_setup`, `/temporary_vc` を登録。 |
 | `src/views/view.py` | `/setup` フローで利用する `SendModalView` / `SendMessageModal` を提供。 |
 | `src/views/nickname_sync_setup.py` | `/nickname_sync_setup` から呼び出す `NicknameSyncSetupView`（ChannelSelect + RoleSelect + 保存ボタン）。 |
-| `src/bot/handlers.py` | 監視対象チャンネル投稿をニックネームへ上書きし、ロールを付与する共通ロジック。 |
+| `src/bot/handlers.py` | 監視対象チャンネルの投稿内容をニックネームとしてメンバーに適用し、ロールを付与する共通ロジック。 |
 | `src/app/repositories/temporary_voice.py` | 一時VCカテゴリ/チャンネルの永続化を行う。 |
 | `src/app/services/temporary_voice.py` | カテゴリ設定、VC 作成・削除、VoiceState 監視を統括する。 |
 
@@ -117,10 +117,10 @@ references:
 ## メッセージ監視フロー
 1. `BotClient` (`src/bot/client.py`) は `on_ready` で `tree.sync()` を実行し、`TemporaryVoiceChannelService.cleanup_orphaned_channels(self.guilds)` でレコードと実チャンネルの整合性を取る。
 2. `on_message` ではギルド外/Bot 投稿を除外し、`ChannelNicknameRuleRepository.get_rule_for_channel()` が見つかれば `enforce_nickname_and_role()` を実行。
-3. `enforce_nickname_and_role` (`src/bot/handlers.py:13-58`):
-   - 表示名 (`display_name`→`global_name`→`name`) と本文が異なる場合は `message.edit(content=display_name, allowed_mentions=AllowedMentions.none())`。
+3. `enforce_nickname_and_role` (`src/bot/handlers.py:13-92`):
+   - `message.content.strip()` を新ニックネーム候補とし、空/32文字超過はスキップ（後者は `❌` リアクション）。
+   - 異なる場合のみ `member.edit(nick=new_nickname, reason="Nickname sync from message content")` を実行し、成功時は `✅` リアクションを付与。`discord.Forbidden` は WARN、`discord.HTTPException` は ERROR。
    - ギルドから対象ロールを取得し、未付与なら `member.add_roles(role, reason="Nickname guard auto assignment")`。
-   - Forbidden/HTTPException は WARN ログを残し処理継続。
 4. `on_voice_state_update` は `TemporaryVoiceChannelService.handle_voice_state_update(member, before.channel, after.channel)` を呼び、
     - `before.channel` の `members` が空で管理対象レコードがあれば `channel.delete(reason="Temporary voice channel expired")` → レコード削除。
     - `after.channel` が管理対象なら `touch_last_seen()` で滞在情報を更新。
@@ -143,7 +143,7 @@ references:
 | `tests/views/test_send_message_modal.py` | モーダルの入力検証 | ID 変換、キャッシュ済み/フェッチ経路での送信成功、各種エラー、非 Messageable 判定。 |
 | `tests/bot/test_commands.py` | Slash コマンド | `/setup` の View 返却と `/nickname_sync_setup` の View パラメータ検証。 |
 | `tests/views/test_nickname_sync_setup_view.py` | View 単体 | 選択必須、成功時 upsert、操作権限の許可/拒否パターン。 |
-| `tests/bot/test_handlers.py` | ニックネーム同期処理 | メッセージ編集、ロール未設定/既存ロール時の分岐、表示名フォールバックの確認。 |
+| `tests/bot/test_handlers.py` | ニックネーム同期処理 | 投稿本文からのニックネーム設定、32文字バリデーション、ロール未設定/既存ロール時の分岐を確認。 |
 
 ## 運用メモ
 - Railway では `DATABASE_URL` を環境変数で提供し、Postgres 停止時は Bot を再起動して再接続する（自動リトライは未実装）。

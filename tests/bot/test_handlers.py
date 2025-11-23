@@ -17,16 +17,23 @@ class FakeRole:
 class FakeMember:
     def __init__(self, *, display_name: str = "Tester", member_id: int = 42) -> None:
         self.display_name = display_name
-        self.global_name = None
-        self.name = "tester"
         self.roles: list[FakeRole] = []
         self.id = member_id
         self.bot = False
         self.added: list[tuple[FakeRole, str | None]] = []
+        self.edits: list[tuple[str | None, str | None]] = []
 
     async def add_roles(self, role: FakeRole, *, reason: str | None = None) -> None:
         self.roles.append(role)
         self.added.append((role, reason))
+
+    async def edit(self, *, nick: str | None = None, reason: str | None = None) -> None:
+        if nick is not None:
+            self.display_name = nick
+        self.edits.append((nick, reason))
+
+# handlers モジュール内の isinstance チェックをテスト用スタブに通す
+handlers_module.discord.Member = FakeMember  # type: ignore[attr-defined]
 
 
 class FakeGuild:
@@ -41,24 +48,23 @@ class FakeGuild:
 
 
 class FakeMessage:
-    def __init__(self, member: FakeMember, guild: FakeGuild) -> None:
+    def __init__(self, member: FakeMember, guild: FakeGuild, *, content: str = "original") -> None:
         self.guild = guild
         self.author = member
         self.channel = types.SimpleNamespace(id=99)
-        self.content = "original"
-        self.edits: list[str] = []
-
-    async def edit(self, *, content: str, allowed_mentions=None) -> None:  # noqa: D401 - discord 互換
         self.content = content
-        self.edits.append(content)
+        self.reactions: list[str] = []
+
+    async def add_reaction(self, emoji: str) -> None:  # noqa: D401 - discord 互換
+        self.reactions.append(emoji)
 
 
 @pytest.mark.asyncio
-async def test_enforce_updates_message_and_assigns_role() -> None:
+async def test_enforce_updates_nickname_and_assigns_role() -> None:
     role = FakeRole(role_id=50)
-    member = FakeMember(display_name="NewNick")
+    member = FakeMember(display_name="OldNick")
     guild = FakeGuild(guild_id=777, role=role)
-    message = FakeMessage(member, guild)
+    message = FakeMessage(member, guild, content="  NewNick  ")
     rule = ChannelNicknameRule(
         guild_id=777,
         channel_id=99,
@@ -69,16 +75,18 @@ async def test_enforce_updates_message_and_assigns_role() -> None:
 
     await enforce_nickname_and_role(message, rule)
 
-    assert message.content == "NewNick"
+    assert member.display_name == "NewNick"
+    assert member.edits[0][0] == "NewNick"
     assert member.roles[0] is role
     assert member.added[0][1] is not None
+    assert "✅" in message.reactions
 
 
 @pytest.mark.asyncio
 async def test_enforce_skips_when_role_missing() -> None:
     member = FakeMember(display_name="Nick")
     guild = FakeGuild(guild_id=1, role=None)
-    message = FakeMessage(member, guild)
+    message = FakeMessage(member, guild, content="NickName")
     rule = ChannelNicknameRule(
         guild_id=1,
         channel_id=99,
@@ -90,16 +98,16 @@ async def test_enforce_skips_when_role_missing() -> None:
     await enforce_nickname_and_role(message, rule)
 
     assert member.roles == []
-    assert message.content == "Nick"
+    assert member.display_name == "NickName"
+    assert "✅" in message.reactions
 
 
 @pytest.mark.asyncio
-async def test_enforce_skips_message_edit_when_already_matches() -> None:
+async def test_enforce_skips_nickname_change_when_already_matches() -> None:
     role = FakeRole(role_id=70)
     member = FakeMember(display_name="SameName")
     guild = FakeGuild(guild_id=2, role=role)
-    message = FakeMessage(member, guild)
-    message.content = "SameName"
+    message = FakeMessage(member, guild, content="SameName")
     rule = ChannelNicknameRule(
         guild_id=2,
         channel_id=99,
@@ -110,8 +118,9 @@ async def test_enforce_skips_message_edit_when_already_matches() -> None:
 
     await enforce_nickname_and_role(message, rule)
 
-    assert message.edits == []
+    assert member.edits == []
     assert member.roles[0] is role
+    assert message.reactions == []
 
 
 @pytest.mark.asyncio
@@ -120,7 +129,7 @@ async def test_enforce_skips_role_assignment_if_member_already_has_role() -> Non
     member = FakeMember(display_name="NewNick")
     member.roles.append(role)
     guild = FakeGuild(guild_id=5, role=role)
-    message = FakeMessage(member, guild)
+    message = FakeMessage(member, guild, content="NewNick")
     rule = ChannelNicknameRule(
         guild_id=5,
         channel_id=99,
@@ -131,19 +140,26 @@ async def test_enforce_skips_role_assignment_if_member_already_has_role() -> Non
 
     await enforce_nickname_and_role(message, rule)
 
-    assert message.content == "NewNick"
     assert member.added == []
+    assert message.reactions == []
 
 
-def test_resolve_display_name_fallbacks() -> None:
-    member = types.SimpleNamespace(display_name="Display", global_name="Global", name="Name")
-    assert handlers_module._resolve_display_name(member) == "Display"
+@pytest.mark.asyncio
+async def test_enforce_skips_when_message_too_long() -> None:
+    role = FakeRole(role_id=101)
+    member = FakeMember(display_name="Old")
+    guild = FakeGuild(guild_id=9, role=role)
+    message = FakeMessage(member, guild, content="x" * 33)
+    rule = ChannelNicknameRule(
+        guild_id=9,
+        channel_id=99,
+        role_id=101,
+        updated_by=1,
+        updated_at=datetime.now(),
+    )
 
-    member = types.SimpleNamespace(display_name=None, global_name="Global", name="Name")
-    assert handlers_module._resolve_display_name(member) == "Global"
+    await enforce_nickname_and_role(message, rule)
 
-    member = types.SimpleNamespace(display_name=None, global_name=None, name="Name")
-    assert handlers_module._resolve_display_name(member) == "Name"
-
-    member = types.SimpleNamespace(display_name=None, global_name=None, name=None)
-    assert handlers_module._resolve_display_name(member) == ""
+    assert member.display_name == "Old"
+    assert "❌" in message.reactions
+    assert member.roles[0] is role

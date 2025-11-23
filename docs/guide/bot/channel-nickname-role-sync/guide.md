@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.1.0"
 created: "2025-11-12"
-updated: "2025-11-12"
+updated: "2025-11-23"
 related_intents:
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
 references:
@@ -12,7 +12,7 @@ references:
 ---
 
 ## 概要
-- `/nickname_sync_setup` Slash コマンドで監視チャンネルとロールを登録すると、そのチャンネル内の投稿が自動で「投稿者ニックネームのみ」に書き換わり、指定ロールが付与される。
+- `/nickname_sync_setup` Slash コマンドで監視チャンネルとロールを登録すると、そのチャンネル内の投稿内容をメンバーのニックネームに設定し（32文字まで）、指定ロールを付与する。
 - 参加確認や名簿作成のハンドオフを Bot へ委譲し、作業漏れを防ぐ仕組み。
 
 ## 事前準備
@@ -29,7 +29,7 @@ references:
 
 ## 動作
 1. 監視対象チャンネルでメンバーがメッセージを送信。
-2. Bot が `message.author.display_name` を取得し、メッセージ本文が異なる場合に `message.edit` で上書きする。
+2. Bot がメッセージ本文を取得し、投稿者のニックネームをその内容に変更する（空文字・32文字超過はスキップ）。
 3. `guild.get_role(role_id)` からロールを取得し、未付与の場合のみ `member.add_roles` を実行する。
 4. いずれかの処理に失敗した場合は INFO/WARN ログが出力される。必要に応じて Bot 権限を確認する。
 
@@ -41,6 +41,7 @@ references:
 ## トラブルシューティング
 | 症状 | 対処 |
 | --- | --- |
+| ニックネームが変わらない | 投稿内容が32文字以内か確認し、Botより上位権限のユーザー（サーバー所有者等）でないかをチェック |
 | メッセージが編集されない | Bot に Manage Messages 権限があるか + チャンネルが正しく登録されているかを確認 |
 | ロール付与に失敗 (ログに Forbidden) | Bot ロールの階層を付与対象より上に移動し、Manage Roles 権限を付与 |
 | Slash コマンドが表示されない | `tree.sync()` 失敗の可能性があるため、Bot再起動ログを確認 |

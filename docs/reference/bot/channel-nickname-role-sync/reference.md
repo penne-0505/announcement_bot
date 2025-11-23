@@ -4,7 +4,7 @@ domain: "bot"
 status: "beta"
 version: "0.1.0"
 created: "2025-11-12"
-updated: "2025-11-12"
+updated: "2025-11-23"
 related_plan: "docs/plan/bot/channel-nickname-role-sync/plan.md"
 related_intents:
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
@@ -56,9 +56,10 @@ related_intents:
    - `message.guild` が存在し、`message.author.bot` が False
    - `channel_nickname_rules` に一致する設定がある
 2. `enforce_nickname_and_role` の処理:
-   - `display_name` (無ければ `global_name` → `name`) を求め、本文と異なれば `message.edit(content=display_name)` を実行
-   - `guild.get_role(role_id)` でロール取得し、`role not in member.roles` の場合に `member.add_roles(role, reason="Nickname guard auto assign")`
-   - Forbidden/HTTPException は警告ログで通知し、失敗時もチャンネル監視は継続
+   - `message.content.strip()` を新ニックネーム候補とし、空文字はスキップ、32文字超過は WARN ログ + `❌` リアクションで通知
+   - 異なる場合のみ `author.edit(nick=content, reason="Nickname sync from message content")` を実行し、成功時は `✅` リアクションを付与
+   - `guild.get_role(role_id)` でロール取得し、`role not in member.roles` の場合に `member.add_roles(role, reason="Nickname guard auto assignment")`
+   - `discord.Forbidden`（権限不足）は WARN、`discord.HTTPException` は ERROR で記録し、失敗時もチャンネル監視は継続
 
 ## エラーハンドリング
 - Slash コマンド: 入力不備や権限不足は `interaction.response.send_message(..., ephemeral=True)` で即時通知。
