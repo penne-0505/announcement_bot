@@ -99,6 +99,7 @@ docker run -d \
 | `ValueError: DATABASE_URL is not set` | 環境変数未設定 | `.env` / Railway Variables を設定し再起動。 |
 | `asyncpg.exceptions.InvalidPasswordError` | ユーザー/パスが不一致 | Railway サービスのパスワードを再発行し、`DATABASE_URL` を更新。 |
 | `connection attempt failed` | ネットワーク遮断 / DB 停止 | Railway ステータスを確認し、必要に応じて DB サービスを再起動。 |
+| 起動時に接続リトライが複数回発生し時間がかかる | PaaS が DB をスリープさせており復帰待ちしている | 最大 5 回（合計待ち時間目安 15 秒）までは自動で再試行するため完了まで待つ。復帰しない場合は DB を起動し、`DATABASE_URL` が正しいことを確認。 |
 | `duplicate key value violates unique constraint` | 同一ギルド+チャンネルで多重登録 | `channel_nickname_rules` を確認し、古い行を `DELETE`。再登録時は `/nickname_sync_setup` を使う。 |
 
 ## 関連ドキュメント

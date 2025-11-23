@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Sequence
 
@@ -24,11 +25,7 @@ class Database:
             return
 
         LOGGER.info("PostgreSQL への接続を開始します。")
-        self._pool = await asyncpg.create_pool(
-            dsn=self._dsn,
-            min_size=self._min_size,
-            max_size=self._max_size,
-        )
+        self._pool = await self._create_pool_with_retry()
         await self._ensure_schema()
         LOGGER.info("PostgreSQL との接続とテーブル初期化が完了しました。")
 
@@ -92,6 +89,44 @@ class Database:
         );
         """
         await self.execute(schema_sql)
+
+    async def _create_pool_with_retry(
+        self,
+        *,
+        max_attempts: int = 5,
+        base_delay: float = 1.0,
+        max_delay: float = 10.0,
+    ) -> asyncpg.Pool:
+        """PaaS のスリープ復帰を考慮し、接続プールをリトライ付きで作成する。"""
+
+        attempt = 1
+        while True:
+            try:
+                return await asyncpg.create_pool(
+                    dsn=self._dsn,
+                    min_size=self._min_size,
+                    max_size=self._max_size,
+                )
+            except Exception as exc:  # pragma: no cover - 実際の接続失敗は環境依存
+                if attempt >= max_attempts:
+                    LOGGER.error(
+                        "PostgreSQL への接続に失敗しました (%d/%d 回目)。再試行を断念します。",
+                        attempt,
+                        max_attempts,
+                        exc_info=exc,
+                    )
+                    raise
+
+                delay = min(max_delay, base_delay * 2 ** (attempt - 1))
+                LOGGER.warning(
+                    "PostgreSQL への接続に失敗しました (%d/%d 回目: %s)。%.1f 秒後に再試行します。",
+                    attempt,
+                    max_attempts,
+                    exc.__class__.__name__,
+                    delay,
+                )
+                attempt += 1
+                await asyncio.sleep(delay)
 
     async def _require_pool(self) -> asyncpg.Pool:
         if self._pool is None:

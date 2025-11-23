@@ -25,6 +25,7 @@ Discord 上で告知メッセージ送信 (`/setup`)、ニックネーム同期 
    # または
    poetry run python -m src.main
    ```
+   - PaaS で PostgreSQL がスリープしている場合でも、起動時に最大 5 回（指数バックオフで最大 10 秒待機）まで自動で再接続を試みます。起動完了まで少し時間がかかることがあります。
 
 ## システム構成の補足
 - `src/app/config.py` で `.env` を読み込み `AppConfig(discord.token, database.url)` を構築。
