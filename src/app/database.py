@@ -87,6 +87,12 @@ class Database:
             last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (guild_id, owner_user_id)
         );
+
+        CREATE TABLE IF NOT EXISTS server_colors (
+            guild_id BIGINT PRIMARY KEY,
+            color_value INTEGER NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
         """
         await self.execute(schema_sql)
 

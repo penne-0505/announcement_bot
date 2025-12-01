@@ -6,6 +6,7 @@ Discord 上で告知メッセージ送信 (`/setup`)、ニックネーム同期 
 - `/setup`: チャンネル ID + 本文を入力できるモーダルを提供し、任意のテキストチャンネルへ告知文を投稿します。無効な ID やアクセス権限不足は ephemeral メッセージで即時通知されます。
 - `/nickname_sync_setup`: ChannelSelect + RoleSelect の View から監視対象チャンネルと付与ロールを登録。登録済みチャンネルへの投稿は投稿者の `display_name` に書き換えられ、ロール未付与時は指定ロールを自動付与します。ログには成功・警告・例外のいずれも出力されます。
 - `/temporary_vc`: 管理者がカテゴリを登録し、一般メンバーは `/temporary_vc create` で即席 VC を生成できます。VoiceState を監視して無人チャンネルは自動削除されます。
+- ギルド単位の Embed カラー自動割当: 起動時に未登録 Guild へ一意のテーマカラー (0xRRGGBB) を発行し、橋渡しメッセージで一貫した配色を適用するためのベースを提供します。
 
 ## セットアップ
 1. 依存関係をインストールします。
@@ -57,3 +58,6 @@ Discord 上で告知メッセージ送信 (`/setup`)、ニックネーム同期 
   - Intent: `docs/intent/bot/temporary-voice-channels/intent.md`
   - 利用ガイド: `docs/guide/bot/temporary-voice-channels/guide.md`
   - リファレンス: `docs/reference/bot/temporary-voice-channels/reference.md`
+- **Guild Embed カラー自動割当**
+  - 計画: `docs/plan/bot/per_guild_embed_color.md`
+  - Intent: `docs/intent/bot/per-guild-embed-color/intent.md`
