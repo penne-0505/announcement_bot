@@ -78,6 +78,20 @@ class ColorAssignmentService:
 
         return assigned
 
+    async def get_or_assign_color(self, guild_id: int) -> int:
+        """Guild のカラーを取得し、未登録なら新規割り当てする。"""
+
+        existing = await self._repository.get_color(guild_id)
+        if existing is not None:
+            return existing.color_value
+
+        stored = await self._repository.get_all_colors()
+        existing_values = [color.color_value for color in stored]
+        color_value = self.generate_unique_color(existing_values)
+        await self._repository.save_color(guild_id, color_value)
+        LOGGER.info("Guild %s にカラー 0x%06X を割り当てました。", guild_id, color_value)
+        return color_value
+
     @staticmethod
     def _distance(color_a: int, color_b: int) -> float:
         ra, ga, ba = ColorAssignmentService._to_rgb(color_a)
