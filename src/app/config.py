@@ -25,11 +25,19 @@ class DatabaseSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class FeatureFlags:
+    """アプリの実験的/運用フラグを保持する。"""
+
+    force_color_regeneration: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class AppConfig:
     """アプリケーション全体の設定値をまとめる。"""
 
     discord: DiscordSettings
     database: DatabaseSettings
+    feature_flags: FeatureFlags
 
 
 def _load_env_file(env_file: str | Path | None) -> None:
@@ -63,6 +71,16 @@ def _prepare_database_url(raw_url: str | None) -> str:
     return raw_url.strip()
 
 
+def _prepare_force_color_regeneration(raw_flag: str | None) -> bool:
+    """強制カラー再生成フラグを環境変数から取得する。"""
+
+    if raw_flag is None or raw_flag.strip() == "":
+        return False
+
+    normalized = raw_flag.strip().lower()
+    return normalized in {"1", "true", "yes", "on"}
+
+
 def load_config(env_file: str | Path | None = None) -> AppConfig:
     """環境変数と .env から設定を読み込む。"""
 
@@ -70,13 +88,23 @@ def load_config(env_file: str | Path | None = None) -> AppConfig:
 
     token = _prepare_client_token(raw_token=os.getenv("DISCORD_BOT_TOKEN"))
     database_url = _prepare_database_url(raw_url=os.getenv("DATABASE_URL"))
+    force_color_regeneration = _prepare_force_color_regeneration(
+        raw_flag=os.getenv("FORCE_REGENERATE_COLORS")
+    )
 
     LOGGER.info("設定の読み込みが完了しました。")
 
     return AppConfig(
         discord=DiscordSettings(token=token),
         database=DatabaseSettings(url=database_url),
+        feature_flags=FeatureFlags(force_color_regeneration=force_color_regeneration),
     )
 
 
-__all__ = ["AppConfig", "DiscordSettings", "DatabaseSettings", "load_config"]
+__all__ = [
+    "AppConfig",
+    "DiscordSettings",
+    "DatabaseSettings",
+    "FeatureFlags",
+    "load_config",
+]
