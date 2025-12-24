@@ -1,10 +1,10 @@
 ---
 title: "Railway セットアップガイド"
 domain: "ops"
-status: "active"
-version: "0.1.0"
+status: "superseded"
+version: "0.1.1"
 created: "2025-11-15"
-updated: "2025-11-15"
+updated: "2025-12-24"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
@@ -12,7 +12,10 @@ related_intents:
 references:
   - "README.md"
   - "docs/reference/bot/master-spec/reference.md"
+  - "docs/guide/ops/database-setup/guide.md"
 ---
+
+> **Superseded:** 現在は SQLite/aiosqlite ベースの `docs/guide/ops/database-setup/guide.md` が正式なセットアップ手順です。以下は過去に Railway/PostgreSQL を使っていた構成の記録として残します。
 
 ## 概要
 - 本ガイドは `announcement_bot` を Railway にデプロイすることを前提に、リポジトリのクローンから Slash コマンドが利用可能になるまでのセットアップ手順を網羅します。

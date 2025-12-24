@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Protocol
 
 from app.database import Database
+from app.repositories._helpers import ensure_utc_timestamp
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,9 +32,9 @@ class ChannelNicknameRuleRepository:
     async def upsert_rule(self, guild_id: int, channel_id: int, role_id: int, updated_by: int) -> ChannelNicknameRule:
         query = """
         INSERT INTO channel_nickname_rules (guild_id, channel_id, role_id, updated_by)
-        VALUES ($1, $2, $3, $4)
+        VALUES (?, ?, ?, ?)
         ON CONFLICT (guild_id, channel_id)
-        DO UPDATE SET role_id = EXCLUDED.role_id, updated_by = EXCLUDED.updated_by, updated_at = NOW()
+        DO UPDATE SET role_id = excluded.role_id, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP
         RETURNING guild_id, channel_id, role_id, updated_by, updated_at
         """
         row = await self._database.fetchrow(query, guild_id, channel_id, role_id, updated_by)
@@ -44,7 +45,7 @@ class ChannelNicknameRuleRepository:
         query = """
         SELECT guild_id, channel_id, role_id, updated_by, updated_at
         FROM channel_nickname_rules
-        WHERE guild_id = $1 AND channel_id = $2
+        WHERE guild_id = ? AND channel_id = ?
         """
         row = await self._database.fetchrow(query, guild_id, channel_id)
         if row is None:
@@ -58,7 +59,7 @@ class ChannelNicknameRuleRepository:
             channel_id=int(row["channel_id"]),
             role_id=int(row["role_id"]),
             updated_by=int(row["updated_by"]),
-            updated_at=row["updated_at"],
+            updated_at=ensure_utc_timestamp(row["updated_at"]),
         )
 
 

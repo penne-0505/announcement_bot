@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import asyncpg
 import logging
+import sqlite3
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -113,7 +113,7 @@ class TemporaryVoiceChannelService:
 
         try:
             record = await self._channel_repo.create_record(guild.id, member.id, category_entity.category_id)
-        except asyncpg.UniqueViolationError as exc:
+        except sqlite3.IntegrityError as exc:
             existing_record = await self._channel_repo.get_by_owner(guild.id, member.id)
             if existing_record is not None:
                 raise TemporaryVoiceChannelExistsError(existing_record) from exc

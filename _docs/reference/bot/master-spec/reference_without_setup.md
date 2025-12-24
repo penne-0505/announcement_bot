@@ -20,7 +20,7 @@ references:
 | モジュール | 役割 |
 | --- | --- |
 | `src/app/config.py` | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `DATABASE_URL` を読み込み `AppConfig` を生成。 |
-| `src/app/database.py` | asyncpg プールを管理し、`channel_nickname_rules` テーブルを自動作成。 |
+| `src/app/database.py` | SQLite ファイルへ `aiosqlite` 接続を管理し、`channel_nickname_rules` テーブルを自動作成。 |
 | `src/app/container.py` | DB/リポジトリを初期化し、`BotClient` と Slash コマンド登録を完了させる。 |
 | `src/bot/client.py` | Discord クライアント拡張。`on_ready` で `tree.sync()`、`on_message` でニックネーム同期処理を呼び出す。 |
 | `src/bot/commands.py` | `/nickname_sync_setup` コマンドを登録し、View を返す。 |
@@ -29,25 +29,25 @@ references:
 
 ## 実行環境と依存
 - Python 3.12 / Poetry 管理。
-- 主要依存: `discord-py>=2.6.4`, `asyncpg`, `python-dotenv`。
+- 主要依存: `discord-py>=2.6.4`, `aiosqlite`, `python-dotenv`。
 - 実行: `poetry run announcement-bot` または `poetry run python -m src.main`。
 
 ## 設定
 | 変数 | 必須 | 説明 |
 | --- | --- | --- |
 | `DISCORD_BOT_TOKEN` | ✅ | Discord Bot トークン。 |
-| `DATABASE_URL` | ✅ | PostgreSQL 接続文字列 (Railway 等)。 |
+| `DATABASE_URL` | ✅ | SQLite ファイルパス (例: `sqlite:///./data/announcement_bot.sqlite3` / `:memory:`)。 |
 - `.env.example` に両方記載。`load_config()` が `.env` を読み込んだ上で値を検証する。
 
 ## データモデル
 ### `channel_nickname_rules`
 | カラム | 型 | 説明 |
 | --- | --- | --- |
-| `guild_id` | BIGINT | 対象ギルド ID |
-| `channel_id` | BIGINT | 監視チャンネル ID |
-| `role_id` | BIGINT | 自動付与ロール ID |
-| `updated_by` | BIGINT | 設定実行者 ID |
-| `updated_at` | TIMESTAMPTZ | `NOW()` デフォルト |
+| `guild_id` | INTEGER | 対象ギルド ID |
+| `channel_id` | INTEGER | 監視チャンネル ID |
+| `role_id` | INTEGER | 自動付与ロール ID |
+| `updated_by` | INTEGER | 設定実行者 ID |
+| `updated_at` | TEXT | `CURRENT_TIMESTAMP` デフォルト（ISO8601 文字列） |
 | 主キー | `(guild_id, channel_id)` |
 
 `ChannelNicknameRuleRepository` (`src/app/repositories/channel_rules.py`)

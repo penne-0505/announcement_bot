@@ -4,6 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -19,9 +20,9 @@ class DiscordSettings:
 
 @dataclass(frozen=True, slots=True)
 class DatabaseSettings:
-    """PostgreSQL 接続情報を保持する。"""
+    """SQLite 接続先パスを保持する。"""
 
-    url: str
+    path: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,12 +64,37 @@ def _prepare_client_token(raw_token: str | None) -> str:
     return raw_token.strip()
 
 
-def _prepare_database_url(raw_url: str | None) -> str:
-    """Database URL を検証し整形する。"""
+def _prepare_database_url(raw_url: str | None) -> Path:
+    """`DATABASE_URL` を SQLite ファイルパスへ整形する。"""
 
     if raw_url is None or raw_url.strip() == "":
         raise ValueError("DATABASE_URL is not set in environment variables.")
-    return raw_url.strip()
+
+    normalized = raw_url.strip()
+    parsed = urlparse(normalized)
+    candidate: str
+
+    if parsed.scheme in {"sqlite"}:
+        # sqlite:///absolute/path のようなパターン
+        path = parsed.path or ""
+        if path == "/:memory:":
+            candidate = ":memory:"
+        else:
+            candidate = f"{parsed.netloc}{path}"
+    elif parsed.scheme in {"", "file"}:
+        candidate = normalized
+    else:
+        raise ValueError(
+            "DATABASE_URL must be a SQLite path (e.g. sqlite:///path/to/file or :memory:)"
+        )
+
+    if candidate in {"", "/", "//"}:
+        raise ValueError("DATABASE_URL is invalid; path component is missing.")
+
+    if candidate == ":memory:":
+        return Path(":memory:")
+
+    return Path(candidate)
 
 
 def _prepare_force_color_regeneration(raw_flag: str | None) -> bool:
@@ -87,7 +113,7 @@ def load_config(env_file: str | Path | None = None) -> AppConfig:
     _load_env_file(env_file)
 
     token = _prepare_client_token(raw_token=os.getenv("DISCORD_BOT_TOKEN"))
-    database_url = _prepare_database_url(raw_url=os.getenv("DATABASE_URL"))
+    database_path = _prepare_database_url(raw_url=os.getenv("DATABASE_URL"))
     force_color_regeneration = _prepare_force_color_regeneration(
         raw_flag=os.getenv("FORCE_REGENERATE_COLORS")
     )
@@ -96,7 +122,7 @@ def load_config(env_file: str | Path | None = None) -> AppConfig:
 
     return AppConfig(
         discord=DiscordSettings(token=token),
-        database=DatabaseSettings(url=database_url),
+        database=DatabaseSettings(path=database_path),
         feature_flags=FeatureFlags(force_color_regeneration=force_color_regeneration),
     )
 

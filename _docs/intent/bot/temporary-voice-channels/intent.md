@@ -16,7 +16,7 @@ references:
 ## 背景
 - Clover サーバーでは、配信用ルームやスタッフ控室などで即席のボイスチャンネル需要が増えているが、カテゴリ作成や権限設定を管理者が手動で行うと待ち時間が発生しがちだった。
 - 既存 Bot はテキストチャンネル監視に限定されており、VoiceState Intent を活用した機能が存在しないため、plan (`docs/plan/bot/temporary-voice-channels/plan.md`) で定義した要件を実装する。
-- 永続化には既存の PostgreSQL/asyncpg を継続利用し、Railway 上の運用負荷を最小限に抑える。
+- 永続化には既存の SQLite/aiosqlite を継続利用し、ローカル/ホストベースの運用負荷を最小限に抑える。
 
 ## 決定事項
 1. **Slash コマンド `/temporary_vc` を導入**し、`category`（Manage Channels 権限必須）、`create`、`reset` の 3 サブコマンドでカテゴリ登録～ユーザー自身の一時VC管理まで完結させる。カテゴリ更新時には旧 VC を全削除し、結果を INFO ログと応答メッセージで通知する。
@@ -27,17 +27,17 @@ references:
 
 ## トレードオフ
 - View UI ではなく Slash コマンドでカテゴリを受け付けたため、操作はログベースで分かりやすい反面、「カテゴリを選択する GUI」は提供していない。将来的に需要があれば追加検討する。
-- 永続層は asyncpg + SQL 直書きのまま維持し、トランザクションを導入していない。作成フローは「INSERT → Discord API → UPDATE」で順次実行することで整合性を確保する。
+- 永続層は `aiosqlite` + SQL 直書きのまま維持し、トランザクションを導入していない。作成フローは「INSERT → Discord API → UPDATE」で順次実行することで整合性を確保する。
 - VoiceState 監視は `discord.Intents.all()` に依存する。Intent を細かく制限していないため、Bot 設定で VoiceState Intent を無効化すると機能しないが、ログで気付けるようにした。
 
 ## 影響範囲
 - `src/app/database.py` にテーブル作成ロジックを追加し、`app.repositories` / `app.services` / `bot` 全体に変更が波及した。
 - 新 Slash コマンドを README と master spec に追記。ユーザードキュメントとして `docs/guide/bot/temporary-voice-channels/guide.md`、仕様リファレンスとして `docs/reference/bot/temporary-voice-channels/reference.md` を追加した。
-- Railway デプロイ時は VoiceState Intent が有効になっていることを再確認する運用が必要。
+- デプロイ環境では VoiceState Intent が有効になっていることを再確認する運用が必要。
 
 ## テスト / 観測
 - `tests/bot/test_commands.py` へ一時VCコマンドのモックテストを追加し、既存テストと合わせて `PYTHONPATH=src pytest` で 16 ケースを通過させた。
-- サービス層の主要イベント（カテゴリ設定/作成/削除失敗）は `logging` で INFO/WARN/ERROR を出力し、Railway ダッシュボードで監視できるようにした。
+- サービス層の主要イベント（カテゴリ設定/作成/削除失敗）は `logging` で INFO/WARN/ERROR を出力し、ホストのログストリームで監視できるようにした。
 
 ## フォローアップ
 1. カテゴリ未設定時の自動リマインドや UI 補助（Component ベース）の要望があれば draft を起こす。

@@ -17,7 +17,7 @@ references:
 
 ## 事前準備
 1. Bot ロールに **Manage Roles** と **Send Messages / Manage Messages** 権限を付与する。ロール階層は付与対象ロールより上に配置する。
-2. PostgreSQL の `DATABASE_URL` を `.env` に設定し、`poetry run announcement-bot` で起動する。初回起動時に `channel_nickname_rules` テーブルが自動作成される。
+2. SQLite ファイルパス（例: `sqlite:///./data/announcement_bot.sqlite3`）を `.env` の `DATABASE_URL` に設定し、`poetry install` で依存 (`discord-py`, `aiosqlite`, `python-dotenv` など) を整える。`poetry run announcement-bot` を最初に起動すると `channel_nickname_rules` テーブルが自動作成される。
 3. 監視対象ギルドで Bot が Text チャンネル閲覧・投稿できることを確認する。
 
 ## `/nickname_sync_setup` の使い方

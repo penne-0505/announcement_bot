@@ -19,7 +19,7 @@ class FakeDatabase:
             }
             self.data[guild_id] = record
             return record
-        if "WHERE guild_id = $1" in query:
+        if "WHERE guild_id" in query:
             guild_id = args[0]
             return self.data.get(guild_id)
         raise AssertionError("unexpected fetchrow query")

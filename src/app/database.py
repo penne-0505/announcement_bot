@@ -2,188 +2,158 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, Sequence, TypeVar
+from pathlib import Path
+from typing import Sequence, Callable, Awaitable, Any
 
-import asyncpg
+import aiosqlite
 
 LOGGER = logging.getLogger(__name__)
-T = TypeVar("T")
 
 
 class Database:
-    """asyncpg ベースの接続プールを管理する。"""
+    """aiosqlite ベースで SQLite ファイルへの永続化を管理する。"""
 
-    def __init__(self, dsn: str, *, min_size: int = 1, max_size: int = 4) -> None:
-        self._dsn = dsn
-        self._min_size = min_size
-        self._max_size = max_size
-        self._pool: asyncpg.Pool | None = None
-        self._pool_lock = asyncio.Lock()
+    def __init__(self, path: Path | str, *, timeout: float = 5.0) -> None:
+        self._path = Path(path)
+        self._timeout = timeout
+        self._connection: aiosqlite.Connection | None = None
+        self._connect_lock = asyncio.Lock()
+        self._operation_lock = asyncio.Lock()
 
     async def connect(self) -> None:
-        """接続プールを初期化し、必要なテーブルを作成する。"""
+        """SQLite への接続を初期化し、テーブルを作成する。"""
 
-        if self._pool is not None:
+        if self._connection is not None:
             return
 
-        async with self._pool_lock:
-            if self._pool is not None:
+        async with self._connect_lock:
+            if self._connection is not None:
                 return
 
-            LOGGER.info("PostgreSQL への接続を開始します。")
-            self._pool = await self._create_pool_with_retry()
+            if not self._is_memory_database:
+                self._path.parent.mkdir(parents=True, exist_ok=True)
+
+            LOGGER.info("SQLite (%s) への接続を開始します。", self._path)
+            self._connection = await aiosqlite.connect(
+                str(self._path), timeout=self._timeout
+            )
+            self._connection.row_factory = aiosqlite.Row
+            await self._connection.execute("PRAGMA foreign_keys = ON")
+            await self._connection.commit()
             await self._ensure_schema()
-            LOGGER.info("PostgreSQL との接続とテーブル初期化が完了しました。")
+            LOGGER.info("SQLite テーブルの初期化が完了しました。")
 
     async def close(self) -> None:
-        """接続プールを閉じる。"""
+        """接続をクローズする。"""
 
-        if self._pool is not None:
-            async with self._pool_lock:
-                if self._pool is not None:
-                    await self._pool.close()
-                    self._pool = None
-                    LOGGER.info("PostgreSQL との接続をクローズしました。")
+        if self._connection is None:
+            return
 
-    async def fetchrow(self, query: str, *args: Any) -> asyncpg.Record | None:
-        """1 行を取得する。"""
+        async with self._connect_lock:
+            if self._connection is None:
+                return
 
-        return await self._run_with_retry(lambda conn: conn.fetchrow(query, *args))
+            await self._connection.close()
+            self._connection = None
+            LOGGER.info("SQLite 接続をクローズしました。")
 
-    async def fetch(self, query: str, *args: Any) -> Sequence[asyncpg.Record]:
-        """複数行を取得する。"""
+    async def fetchrow(self, query: str, *params: object) -> aiosqlite.Row | None:
+        """1 行取得する。"""
 
-        return await self._run_with_retry(lambda conn: conn.fetch(query, *args))
+        return await self._run_operation(self._fetch_row, query, params)
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def fetch(self, query: str, *params: object) -> Sequence[aiosqlite.Row]:
+        """複数行取得する。"""
+
+        return await self._run_operation(self._fetch_all, query, params)
+
+    async def execute(self, query: str, *params: object) -> int:
         """書き込み系クエリを実行する。"""
 
-        return await self._run_with_retry(lambda conn: conn.execute(query, *args))
+        return await self._run_operation(self._execute, query, params)
 
     async def _ensure_schema(self) -> None:
-        """必要なテーブルを作成する。"""
+        """初回起動時にテーブルを作成する。"""
 
         schema_sql = """
         CREATE TABLE IF NOT EXISTS channel_nickname_rules (
-            guild_id BIGINT NOT NULL,
-            channel_id BIGINT NOT NULL,
-            role_id BIGINT NOT NULL,
-            updated_by BIGINT NOT NULL,
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            guild_id INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            role_id INTEGER NOT NULL,
+            updated_by INTEGER NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (guild_id, channel_id)
         );
 
         CREATE TABLE IF NOT EXISTS temporary_vc_categories (
-            guild_id BIGINT PRIMARY KEY,
-            category_id BIGINT NOT NULL,
-            updated_by BIGINT NOT NULL,
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            guild_id INTEGER PRIMARY KEY,
+            category_id INTEGER NOT NULL,
+            updated_by INTEGER NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS temporary_voice_channels (
-            guild_id BIGINT NOT NULL,
-            owner_user_id BIGINT NOT NULL,
-            channel_id BIGINT,
-            category_id BIGINT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            guild_id INTEGER NOT NULL,
+            owner_user_id INTEGER NOT NULL,
+            channel_id INTEGER,
+            category_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (guild_id, owner_user_id)
         );
 
         CREATE TABLE IF NOT EXISTS server_colors (
-            guild_id BIGINT PRIMARY KEY,
+            guild_id INTEGER PRIMARY KEY,
             color_value INTEGER NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         """
-        await self.execute(schema_sql)
 
-    async def _create_pool_with_retry(
-        self,
-        *,
-        max_attempts: int = 5,
-        base_delay: float = 1.0,
-        max_delay: float = 10.0,
-    ) -> asyncpg.Pool:
-        """PaaS のスリープ復帰を考慮し、接続プールをリトライ付きで作成する。"""
+        connection = await self._require_connection()
+        async with self._operation_lock:
+            await connection.executescript(schema_sql)
+            await connection.commit()
 
-        attempt = 1
-        while True:
-            try:
-                return await asyncpg.create_pool(
-                    dsn=self._dsn,
-                    min_size=self._min_size,
-                    max_size=self._max_size,
-                    # サーバー側の idle timeout より短くコネクションをリサイクルし、
-                    # スリープ復帰やネットワーク断で切られたコネクションを早期に除去する。
-                    max_inactive_connection_lifetime=1800,
-                    timeout=10,
-                )
-            except Exception as exc:  # pragma: no cover - 実際の接続失敗は環境依存
-                if attempt >= max_attempts:
-                    LOGGER.error(
-                        "PostgreSQL への接続に失敗しました (%d/%d 回目)。再試行を断念します。",
-                        attempt,
-                        max_attempts,
-                        exc_info=exc,
-                    )
-                    raise
+    async def _run_operation(
+        self, handler: Callable[[aiosqlite.Connection, str, tuple[object, ...]], Awaitable[Any]], query: str, params: tuple[object, ...]
+    ) -> Any:
+        connection = await self._require_connection()
+        async with self._operation_lock:
+            return await handler(connection, query, params)
 
-                delay = min(max_delay, base_delay * 2 ** (attempt - 1))
-                LOGGER.warning(
-                    "PostgreSQL への接続に失敗しました (%d/%d 回目: %s)。%.1f 秒後に再試行します。",
-                    attempt,
-                    max_attempts,
-                    exc.__class__.__name__,
-                    delay,
-                )
-                attempt += 1
-                await asyncio.sleep(delay)
+    async def _fetch_row(
+        self, connection: aiosqlite.Connection, query: str, params: tuple[object, ...]
+    ) -> aiosqlite.Row | None:
+        cursor = await connection.execute(query, params)
+        row = await cursor.fetchone()
+        await cursor.close()
+        return row
 
-    async def _require_pool(self) -> asyncpg.Pool:
-        if self._pool is None:
-            raise RuntimeError("Database pool is not initialized. call connect() first.")
-        return self._pool
+    async def _fetch_all(
+        self, connection: aiosqlite.Connection, query: str, params: tuple[object, ...]
+    ) -> Sequence[aiosqlite.Row]:
+        cursor = await connection.execute(query, params)
+        rows = await cursor.fetchall()
+        await cursor.close()
+        return rows
 
-    async def _reset_pool(self, cause: Exception | None = None) -> None:
-        """接続断検知時にプールを再生成する。"""
+    async def _execute(
+        self, connection: aiosqlite.Connection, query: str, params: tuple[object, ...]
+    ) -> int:
+        cursor = await connection.execute(query, params)
+        await connection.commit()
+        rowcount = cursor.rowcount
+        await cursor.close()
+        return rowcount
 
-        async with self._pool_lock:
-            if self._pool is not None:
-                try:
-                    await self._pool.close()
-                except Exception as exc:  # pragma: no cover - close 失敗はログのみ
-                    LOGGER.warning("接続プールのクローズに失敗しました: %s", exc)
-            self._pool = await self._create_pool_with_retry()
-            if cause is not None:
-                LOGGER.info("接続プールを再生成しました (原因: %s)", cause.__class__.__name__)
+    async def _require_connection(self) -> aiosqlite.Connection:
+        if self._connection is None:
+            raise RuntimeError("Database is not initialized. call connect() first.")
+        return self._connection
 
-    async def _run_with_retry(self, op: Callable[[asyncpg.Connection], Awaitable[T]], *, attempts: int = 2) -> T:
-        """接続断を検知したらプールを再生成して1回だけリトライする。"""
-
-        last_exc: Exception | None = None
-        for attempt in range(1, attempts + 1):
-            pool = await self._require_pool()
-            try:
-                async with pool.acquire() as conn:
-                    return await op(conn)
-            except (
-                asyncpg.InterfaceError,
-                asyncpg.ConnectionDoesNotExistError,
-                asyncpg.PostgresConnectionError,
-                ConnectionResetError,
-                OSError,
-            ) as exc:
-                last_exc = exc
-                LOGGER.warning(
-                    "DB 接続エラーを検知しました。再試行します (%d/%d): %s",
-                    attempt,
-                    attempts,
-                    exc.__class__.__name__,
-                )
-                await self._reset_pool(exc)
-        assert last_exc is not None  # for type checker
-        raise last_exc
+    @property
+    def _is_memory_database(self) -> bool:
+        return self._path == Path(":memory:")
 
 
 __all__ = ["Database"]

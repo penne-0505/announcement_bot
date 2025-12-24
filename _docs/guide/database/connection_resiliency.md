@@ -10,22 +10,23 @@ related_prs: []
 ---
 
 ## Overview
-Heroku などの PaaS スリープ復帰・ネットワーク切断で PostgreSQL 接続が EOF になる事象に対し、Bot 側で接続の健全性チェックとプール再生成を入れた。これにより `SSL SYSCALL error: EOF detected` のような例外を拾って 1 回だけリトライし、壊れたコネクションを除去する。
+- `aiosqlite` 接続はシングル `Connection` を再利用するため、IO 操作が一部ブロッキングするケースがある。`Database` は `asyncio.Lock` で操作を直列化し、`sqlite3.OperationalError`（`database is locked` など）を適切に捕捉することで、データ整合性を保ちながら `SQLite` ファイルへのアクセスを継続する。
+- スキーマは `CREATE TABLE IF NOT EXISTS` で `CURRENT_TIMESTAMP` デフォルトを使って自動初期化され、再起動時の `temporary_voice_channels`・`channel_nickname_rules`・`server_colors` などがある程度の整合性を保つことを支援する。
 
 ## Symptoms
-- ログ例: `psycopg pool: discarding closed connection`, `SSL SYSCALL error: EOF detected`
-- イベントハンドラ初回クエリで `OperationalError` が発生し、処理がスキップされる。
-- 長時間アイドル後やデプロイ直後のアクセスで再現しやすい。
+- ログ例: `aiosqlite.OperationalError: unable to open database file`（パスエラー）、`aiosqlite.OperationalError: database is locked`（並列アクセス）。
+- VoiceState/コマンド処理の `fetchrow` で `aiosqlite.DatabaseError` が出てスキップされる。
+- SQLite ファイルへの書き込み権限がない、または別プロセスで排他ロックされた状態が長く続くと、処理が遅延してバックログが発生する。
 
 ## What Changed
-- `Database` クラスで接続取得時に接続断を検知するとプールを再生成し、クエリを 1 回だけ再実行するリトライを追加。
-- `asyncpg.create_pool` に `max_inactive_connection_lifetime=1800` と `timeout=10` を指定し、サーバのアイドルタイムアウト前にコネクションを自動リサイクル。
-- プール生成・再生成はロックで直列化し、並列再接続を防止。
+- `Database` クラスはシングル接続を `aiosqlite.connect()` で生成し、`_operation_lock` を介して fetch/execute を直列化する。
+- 各操作は `await connection.commit()` を伴い、`CURRENT_TIMESTAMP` を使って列を更新することで `PostgreSQL` の `TIMESTAMPTZ` の代替とする。
+- スキーマ初期化は `executescript` で一括実行し、`sqlite3` ファイルのロックエラーが出た場合はアプリ側で再起動することでリカバリする（自動リトライは行わない）。
 
 ## Operations / Tunables
-- `max_inactive_connection_lifetime`: 30 分でアイドル接続を破棄。DB 側の `idle_session_timeout` より短くするのが目安。
-- リトライ回数: 内部固定 1 回。2 回目も失敗した場合は従来どおり例外を呼び出し側へ伝播させる。
-- 監視: ログに `DB 接続エラーを検知しました。再試行します` が出ていないかを確認。頻発する場合はネットワーク/DB 設定を確認する。
+- `DATABASE_URL` に指定するファイルパスの権限チェック（書き込み可・ディレクトリ存在）をデプロイ前チェックリストに追加する。
+- `:memory:` モードを使う場合は永続性がないため、ステージング/テスト用途に限定。戻す場合はファイルパスを指定して安定化する。
+- `aiosqlite.OperationalError` が頻出する場合は、ホストのファイルシステムロック状況や、複数プロセスで同じファイルを共有していないかを確認する。
 
 ## Rollback
-- `src/app/database.py` の `_run_with_retry` / `_reset_pool` 呼び出しと `max_inactive_connection_lifetime` を元に戻すだけで挙動は従来に戻る（スキーマ変更なし）。
+- `src/app/database.py` を以前の `asyncpg` プール実装に戻せば PostgreSQL 方式に戻る。`schema` 自体は `CREATE TABLE IF NOT EXISTS` なので追加変更は不要。

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Protocol, Sequence
 
 from app.database import Database
+from app.repositories._helpers import ensure_utc_timestamp
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +44,7 @@ class ServerColorRepository:
             """
             SELECT guild_id, color_value, created_at
             FROM server_colors
-            WHERE guild_id = $1
+            WHERE guild_id = ?
             """,
             guild_id,
         )
@@ -55,9 +56,9 @@ class ServerColorRepository:
         row = await self._database.fetchrow(
             """
             INSERT INTO server_colors (guild_id, color_value)
-            VALUES ($1, $2)
+            VALUES (?, ?)
             ON CONFLICT (guild_id)
-            DO UPDATE SET color_value = EXCLUDED.color_value
+            DO UPDATE SET color_value = excluded.color_value
             RETURNING guild_id, color_value, created_at
             """,
             guild_id,
@@ -71,7 +72,7 @@ class ServerColorRepository:
         return ServerColor(
             guild_id=int(row["guild_id"]),
             color_value=int(row["color_value"]),
-            created_at=row["created_at"],
+            created_at=ensure_utc_timestamp(row["created_at"]),
         )
 
 

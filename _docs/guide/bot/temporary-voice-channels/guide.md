@@ -18,7 +18,7 @@ references:
 
 ## 事前準備
 1. Bot に **Manage Channels**, **Connect**, **View Channel**, **Move Members**, **Mute Members** を含むロール権限を与え、対象カテゴリにも同等の権限を付与します。
-2. Railway などで起動する際に `DISCORD_BOT_TOKEN`・`DATABASE_URL` を設定し、`pyproject.toml` に基づき依存関係（`discord.py`, `asyncpg` 等）をインストールします。
+2. `DISCORD_BOT_TOKEN` と SQLite 用の `DATABASE_URL`（例: `sqlite:///./data/announcement_bot.sqlite3`）を `.env` に記述し、`pyproject.toml` に揃った依存関係（`discord.py`, `aiosqlite`, `python-dotenv` など）を `poetry install` で準備します。
 3. Discord 開発者ポータルで Voice State Intent を有効化しておきます。Bot クライアントでは `discord.Intents.all()` を利用しているため、Portal 側で無効化されていると VoiceState イベントを受信できません。
 
 ## カテゴリ設定 (`/temporary_vc category`)
@@ -46,4 +46,4 @@ references:
 ## 運用ヒント
 - VC 名の先頭にステータスを付けたい場合は、所有者自身が Manage Channels 権限でリネームしてください。
 - 大規模イベント前にカテゴリ設定を一度リセットしておくと、古いレコードや残存チャンネルの掃除が容易です。
-- 監視ログは INFO/WARN/ERROR レベルで出力されるため、Railway のログストリームをダッシュボード化すると異常検知が素早く行えます。
+- 監視ログは INFO/WARN/ERROR レベルで出力されるため、ホスト先のログストリームをダッシュボード化すると異常検知が素早く行えます。

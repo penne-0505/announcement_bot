@@ -1,10 +1,10 @@
 ---
-title: "PostgreSQL セットアップガイド"
+title: "SQLite セットアップガイド"
 domain: "ops"
 status: "active"
-version: "0.1.0"
+version: "0.2.0"
 created: "2025-11-15"
-updated: "2025-11-15"
+updated: "2025-12-24"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
@@ -16,93 +16,61 @@ references:
 ---
 
 ## 概要
-- `announcement_bot` は PostgreSQL を単一の永続ストアとして利用し、ニックネーム同期設定と一時ボイスチャンネル情報を保持します。
-- 本ガイドは Railway デプロイを前提に、PostgreSQL の作成・接続・初期化・運用までを手順化します。ローカル開発／ステージング環境も同じ `DATABASE_URL` 形式で統一します。
-- テーブルスキーマはアプリ起動時に `src/app/database.py` の `Database._ensure_schema()` が `CREATE TABLE IF NOT EXISTS` で自動適用するため、追加のマイグレーションツールは不要です。
+- `announcement_bot` は `aiosqlite` を介してローカル/ホスト上の SQLite ファイルへデータを永続化する。`Database._ensure_schema()` が起動時に `CREATE TABLE IF NOT EXISTS` を呼び出すため、マイグレーションツールは不要。
+- 本ガイドでは `DATABASE_URL` に設定する SQLite パスの形式・ファイル配置・運用時のチェックポイントをまとめ、既存の `channel_nickname_rules` / `temporary_vc_categories` / `temporary_voice_channels` / `server_colors` テーブルを無事に初期化する方法を提示する。
+- 開発環境とプロダクションではパスのみを切り替えればよく、`DATABASE_URL` を環境変数で切り替えることでホスト構成ごとの柔軟性を担保する。
 
 ## 役割と要件
-- 必須環境変数: `DATABASE_URL`（例: `postgresql://user:pass@host:5432/dbname`）。未設定時は起動前に `ValueError` を送出し Bot が停止します。
-- 使用テーブル:
-  - `channel_nickname_rules (guild_id, channel_id, role_id, updated_by, updated_at)`
-  - `temporary_vc_categories (guild_id, category_id, updated_by, updated_at)`
-  - `temporary_voice_channels (guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at)`
-- 推奨バージョン: PostgreSQL 16 系（Railway のマネージドサービス既定値）。
-- 1 プロジェクト 1 DB を基本とし、複数 Bot で共有しないこと。Slash コマンド設定と結び付いたデータを壊さないよう、DDL/DML は `app.repositories` 経由を原則とします。
+- 必須環境変数: `DATABASE_URL`（例: `sqlite:///./data/announcement_bot.sqlite3`、`:memory:`、`/var/lib/app/db/announcement_bot.sqlite3`）。`load_config()` は指定の書式を検証し、空文字は `ValueError` で起動を止める。
+- `DATABASE_URL` がファイルパスの場合、Bot は起動時に親ディレクトリを自動作成する。権限や SELinux/ファイルシステムの制限を考慮して `announcement_bot` ユーザーが書き込み可能であることを確認する。
+- `aiosqlite` の接続は単一 `Connection` を再利用する設計だが、`asyncio.Lock` で直列化されているため高頻度アクセスでも整合性が保たれる。トランザクションは自動コミット方式（`connection.commit()`）であり、必要に応じてアプリ側で明示的に操作する。
 
 ## 前提準備
-1. Railway アカウントでプロジェクトを作成済みであること（`railway init`/`railway link` 参照）。
-2. ローカル開発環境では `poetry install` 済みで、`.env` に `DATABASE_URL` を記述できること。
-3. PostgreSQL クライアント (`psql`) または Railway CLI の `railway connect` が利用できること。
+1. リポジトリで `poetry install` を実行し、`discord-py`, `aiosqlite`, `python-dotenv` などの依存を取得する。
+2. `DATABASE_URL` で指定したディレクトリ（例: `./data`）が存在し、Bot が書き込めること。`sqlite:///` 形式では先頭の `///` に続くパスが絶対パスになるため、`/var/lib/app/db` などを指定する場合は事前に作成する。
+3. `.env`（あるいはホストの環境変数）で `DISCORD_BOT_TOKEN` と `DATABASE_URL` を設定し、`FORCE_REGENERATE_COLORS` などのフラグは必要に応じて設定する。
 
-## Railway での PostgreSQL 構築
-1. **サービス作成**  
-   - ダッシュボード: 「New」→「Database」→「PostgreSQL」。プロジェクト直下に `postgresql-<hash>` サービスが作成されます。
-   - CLI: `railway add --plugin postgresql` でも同様に作成可能。
-2. **接続文字列の取得**  
-   ```bash
-   railway variables --service postgresql
-   ```
-   - `DATABASE_URL` が自動で出力されます。形式は `postgresql://USER:PASSWORD@HOST:PORT/railway`。
-3. **Bot サービスへの共有**  
-   - ダッシュボード > Variables > Shared Variables で `DATABASE_URL` を Bot サービスに共有、または CLI で `railway variables --service announcement-bot set DATABASE_URL="$RAILWAY_DATABASE_URL"`。
-4. **権限/ネットワーク**  
-   - Railway 内のサービス間通信はデフォルトで許可済み。追加の VPC 設定は不要です。
-5. **バックアップ**  
-   - Pro プラン以上では自動バックアップが有効。Free プランの場合は手動で `railway download --service postgresql` を実行し、ダンプを取得してください。
-
-## ローカル開発用 PostgreSQL
-### Docker を利用する場合
-```bash
-docker run -d \
-  --name clover-postgres \
-  -e POSTGRES_USER=clover \
-  -e POSTGRES_PASSWORD=secretpass \
-  -e POSTGRES_DB=announcement_bot \
-  -p 5432:5432 \
-  postgres:16
-```
-- `.env` の `DATABASE_URL` を `postgresql://clover:secretpass@localhost:5432/announcement_bot` に設定。
-- 停止/削除は `docker stop clover-postgres` → `docker rm clover-postgres`。データを永続化したい場合は `-v clover-pg:/var/lib/postgresql/data` を追加。
-
-### Railway DB を開発でも共用する場合
-1. `railway connect --service postgresql` でトンネルを作成。
-2. 出力されるローカルポート（例: `5433`）を使って `DATABASE_URL=postgresql://USER:PASSWORD@127.0.0.1:5433/railway` を `.env` に記述。
-3. 作業終了後は `Ctrl+C` でトンネルを閉じ、不要な書き込みがないかを確認。
+## SQLite ファイル設定
+- `DATABASE_URL` には `sqlite:///absolute/path/to/db.sqlite3` や `sqlite:///./relative/path.db`（起動ディレクトリ基準）を指定できる。`sqlite:///:memory:` を指定するとインメモリで起動するためテスト用途に向く。
+- 相対パスを使う場合は `.env` を置くディレクトリと Bot 起動位置を一致させ、ディレクトリが存在しないと `aiosqlite.OperationalError: unable to open database file` になるため注意する。
+- 複数インスタンスを動かす場合は `DATABASE_URL` をインスタンスごとに分け、ファイルを共有しない設計とする（SQLite は複数書き込みに制約がある）。
 
 ## アプリによる初期化フロー
-1. `.env` または Railway Variables に `DATABASE_URL` を設定。
-2. `poetry run announcement-bot`（または Railway デプロイ）を実行。
-3. ログに以下が並んで出力されることを確認。
-   - `PostgreSQL への接続を開始します。`
-   - `PostgreSQL との接続とテーブル初期化が完了しました。`
-4. これにより上記 3 テーブルが自動作成されるため、手動で DDL を発行する必要はありません。
+1. `.env` またはホストの環境で `DATABASE_URL` を読み込む。
+2. `poetry run announcement-bot` などでアプリを起動し、`Database.connect()` が `aiosqlite.connect()` を呼ぶ。
+3. ログに以下のメッセージが連続して出力されることを確認する:
+   - `SQLite (<path>) への接続を開始します。`
+   - `SQLite テーブルの初期化が完了しました。`
+4. 上記により `channel_nickname_rules`, `temporary_vc_categories`, `temporary_voice_channels`, `server_colors` テーブルが自動作成される。必要があれば `sqlite3 $DATABASE_URL` で `SELECT name FROM sqlite_schema` を実行して確認する。
 
 ## 手動検証・保守コマンド例
 | 目的 | コマンド |
 | --- | --- |
-| テーブル一覧確認 | `psql "$DATABASE_URL" -c "\dt"` |
-| ルール件数確認 | `psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM channel_nickname_rules;"` |
-| 一時VC孤児レコードの調査 | `psql "$DATABASE_URL" -c "SELECT * FROM temporary_voice_channels WHERE channel_id IS NULL;"` |
-| ローカル→Railway へのデータコピー | `pg_dump "$LOCAL_URL" | psql "$RAILWAY_URL"` |
+| テーブル一覧確認 | `sqlite3 "$DATABASE_URL" ".tables"` |
+| ルール件数確認 | `sqlite3 "$DATABASE_URL" "SELECT COUNT(*) FROM channel_nickname_rules;"` |
+| 一時VCレコード調査 | `sqlite3 "$DATABASE_URL" "SELECT guild_id, channel_id FROM temporary_voice_channels WHERE channel_id IS NULL;"` |
+| ファイルの整合性チェック | `file "$DATABASE_URL"` / `ls -l "$DATABASE_URL"`（パーミッション・サイズの確認） |
 
-- 直接 `DELETE/UPDATE` を行う場合は必ず事前に `pg_dump` でバックアップを取得し、GitHub Issue/PR で操作ログを共有してください。
+### ファイルのバックアップ/復元
+- `sqlite3 "$DATABASE_URL" ".backup /tmp/announcement_bot_backup.sqlite3"` でホットバックアップ。復元は `sqlite3 /tmp/backup ".restore $DATABASE_URL"`。
+- `:memory:` モードを使っている場合はバックアップできないため、暫定的に `sqlite3` でダンプを取得しておく。
 
 ## 運用チェックリスト
-- [ ] Railway Variables に `DATABASE_URL` が存在し、Bot サービスに共有されている。
-- [ ] `channel_nickname_rules` の主キー `(guild_id, channel_id)` がユニークであることを `\d channel_nickname_rules` で確認。
-- [ ] Bot 再起動後、`temporary_voice_channels` の `last_seen_at` が更新される（VoiceState イベントが届いている）ことを定期的に確認。
-- [ ] 障害発生時は Railway ログで `asyncpg` 例外を確認し、DB 側のメンテナンス状況と突き合わせる。
+- [ ] `DATABASE_URL` が正しいパスを指しており、ファイルが存在・書き込み可能である。
+- [ ] Bot の起動ログで `SQLite ... への接続を開始します。` / `SQLite テーブルの初期化が完了しました。` が出力されている。
+- [ ] テーブル数・カラム（`sqlite3 "$DATABASE_URL" "PRAGMA table_info(channel_nickname_rules);"` など）を定期的に確認し、データ構造変更が反映されているか監査する。
+- [ ] `temporary_voice_channels` の `last_seen_at` が適宜 `UPDATE ... CURRENT_TIMESTAMP` で更新されていることを検証する（VoiceState イベントの受信ログ）。
+- [ ] ファイルのサイズが急激に増えていないか、`du -h` などで観察する（ログや一時データが残らないよう定期クリアを考慮）。
 
 ## トラブルシューティング
 | 症状 | 原因 | 対応 |
 | --- | --- | --- |
-| `ValueError: DATABASE_URL is not set` | 環境変数未設定 | `.env` / Railway Variables を設定し再起動。 |
-| `asyncpg.exceptions.InvalidPasswordError` | ユーザー/パスが不一致 | Railway サービスのパスワードを再発行し、`DATABASE_URL` を更新。 |
-| `connection attempt failed` | ネットワーク遮断 / DB 停止 | Railway ステータスを確認し、必要に応じて DB サービスを再起動。 |
-| 起動時に接続リトライが複数回発生し時間がかかる | PaaS が DB をスリープさせており復帰待ちしている | 最大 5 回（合計待ち時間目安 15 秒）までは自動で再試行するため完了まで待つ。復帰しない場合は DB を起動し、`DATABASE_URL` が正しいことを確認。 |
-| `duplicate key value violates unique constraint` | 同一ギルド+チャンネルで多重登録 | `channel_nickname_rules` を確認し、古い行を `DELETE`。再登録時は `/nickname_sync_setup` を使う。 |
+| `ValueError: DATABASE_URL is not set` | 環境変数未設定 | `.env`/指定箇所へ `DATABASE_URL` を設定し、Bot を再起動。 |
+| `aiosqlite.OperationalError: unable to open database file` | ファイルパスが存在しない/権限不足 | ディレクトリを作成し適切なオーナーとパーミッション (`chmod 755` など) を設定。 |
+| `aiosqlite.DatabaseError: database disk image is malformed` | DB ファイルが破損 | バックアップから復元するか、空ファイルに差し替え。復元後も従来のレコードが必要な場合は `sqlite3` で `SELECT` して確認する。 |
+| `sqlite3.IntegrityError: UNIQUE constraint failed` | 一意制約違反（同じ guild_id + channel_id など） | 重複レコードを `DELETE` → `INSERT` で修正するか、Bot を再起動して仮レコードを上書き。|
 
 ## 関連ドキュメント
 - `README.md`: `.env` 設定と起動手順。
-- `docs/reference/bot/master-spec/reference.md`: データモデルの詳細とエラーハンドリング。
-- `docs/guide/ops/railway-setup/guide.md`: Railway サービス全体のセットアップ。DB ガイドと合わせて参照してください。
+- `docs/reference/bot/master-spec/reference.md`: テーブル構造と永続化挙動。
+- `docs/guide/ops/railway-setup/guide.md`: 旧 Railway/PostgreSQL ガイド（現在は SQLite に移行中で、必要に応じて内容をご参照ください）。
