@@ -64,10 +64,10 @@ async def test_process_modal_submission_fetches_channel_when_not_cached(
     class FakeChannel(FakeMessageable):
         def __init__(self) -> None:
             self.id = 999
-            self.sent: list[str] = []
+            self.sent: list[dict[str, object | None]] = []
 
-        async def send(self, content: str) -> None:
-            self.sent.append(content)
+        async def send(self, *, content: str | None = None, embed=None) -> None:
+            self.sent.append({"content": content, "embed": embed})
 
     monkeypatch.setattr(view_module, "Messageable", FakeMessageable)
 
@@ -83,7 +83,7 @@ async def test_process_modal_submission_fetches_channel_when_not_cached(
     )
 
     assert client.fetch_calls == 1
-    assert channel.sent == ["テスト"]
+    assert channel.sent[0]["embed"].description == "テスト"
     assert interaction.response.messages[0][
         "content"
     ] == SendMessageModal.SUCCESS_MESSAGE.format(channel_id=channel.id)
@@ -177,10 +177,10 @@ async def test_process_modal_submission_uses_cached_channel(
     class FakeChannel(FakeMessageable):
         def __init__(self) -> None:
             self.id = 321
-            self.sent: list[str] = []
+            self.sent: list[dict[str, object | None]] = []
 
-        async def send(self, content: str) -> None:
-            self.sent.append(content)
+        async def send(self, *, content: str | None = None, embed=None) -> None:
+            self.sent.append({"content": content, "embed": embed})
 
     monkeypatch.setattr(view_module, "Messageable", FakeMessageable)
 
@@ -196,8 +196,7 @@ async def test_process_modal_submission_uses_cached_channel(
     )
 
     assert client.fetch_calls == 0
-    assert channel.sent == ["cached"]
-    assert (
-        interaction.response.messages[0]["content"]
-        == SendMessageModal.SUCCESS_MESSAGE.format(channel_id=channel.id)
-    )
+    assert channel.sent[0]["embed"].description == "cached"
+    assert interaction.response.messages[0][
+        "content"
+    ] == SendMessageModal.SUCCESS_MESSAGE.format(channel_id=channel.id)
