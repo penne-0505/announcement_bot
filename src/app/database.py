@@ -32,6 +32,9 @@ class Database:
 
             if not self._is_memory_database:
                 self._path.parent.mkdir(parents=True, exist_ok=True)
+                if not self._path.exists():
+                    LOGGER.info("SQLite DB ファイルが存在しないため作成します: %s", self._path)
+                    self._path.touch()
 
             LOGGER.info("SQLite (%s) への接続を開始します。", self._path)
             self._connection = await aiosqlite.connect(
