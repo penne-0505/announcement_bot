@@ -48,7 +48,7 @@ class ServerColorRepository:
             """
             SELECT guild_id, color_value, created_at
             FROM server_colors
-            WHERE guild_id = ?
+            WHERE guild_id = $1
             """,
             guild_id,
         )
@@ -61,7 +61,7 @@ class ServerColorRepository:
         row = await self._database.fetchrow(
             """
             INSERT INTO server_colors (guild_id, color_value)
-            VALUES (?, ?)
+            VALUES ($1, $2)
             ON CONFLICT (guild_id)
             DO UPDATE SET color_value = excluded.color_value
             RETURNING guild_id, color_value, created_at

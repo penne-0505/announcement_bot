@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from pathlib import Path
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
@@ -20,9 +19,9 @@ class DiscordSettings:
 
 @dataclass(frozen=True, slots=True)
 class DatabaseSettings:
-    """SQLite 接続先パスを保持する。"""
+    """PostgreSQL 接続先 DSN を保持する。"""
 
-    path: Path
+    dsn: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,42 +63,21 @@ def _prepare_client_token(raw_token: str | None) -> str:
     return raw_token.strip()
 
 
-def _prepare_database_url(raw_url: str | None) -> Path:
-    """`DATABASE_URL` を SQLite ファイルパスへ整形する。"""
+def _prepare_database_url(raw_url: str | None) -> str:
+    """`DATABASE_URL` を PostgreSQL DSN として検証する。"""
 
     if raw_url is None or raw_url.strip() == "":
-        default_path = Path("./data/announcement_bot.sqlite3")
-        LOGGER.warning(
-            "DATABASE_URL is not set. Falling back to default SQLite path: %s",
-            default_path,
-        )
-        return default_path
+        raise ValueError("DATABASE_URL is not set in environment variables.")
 
     normalized = raw_url.strip()
     parsed = urlparse(normalized)
-    candidate: str
-
-    if parsed.scheme in {"sqlite"}:
-        # sqlite:///absolute/path のようなパターン
-        path = parsed.path or ""
-        if path == "/:memory:":
-            candidate = ":memory:"
-        else:
-            candidate = f"{parsed.netloc}{path}"
-    elif parsed.scheme in {"", "file"}:
-        candidate = normalized
-    else:
+    if parsed.scheme not in {"postgres", "postgresql"}:
         raise ValueError(
-            "DATABASE_URL must be a SQLite path (e.g. sqlite:///path/to/file or :memory:)"
+            "DATABASE_URL must be a Postgres URL (e.g. postgresql://user:pass@host:5432/db)"
         )
-
-    if candidate in {"", "/", "//"}:
-        raise ValueError("DATABASE_URL is invalid; path component is missing.")
-
-    if candidate == ":memory:":
-        return Path(":memory:")
-
-    return Path(candidate)
+    if not parsed.hostname:
+        raise ValueError("DATABASE_URL is invalid; host component is missing.")
+    return normalized
 
 
 def _prepare_force_color_regeneration(raw_flag: str | None) -> bool:
@@ -118,7 +96,7 @@ def load_config(env_file: str | Path | None = None) -> AppConfig:
     _load_env_file(env_file)
 
     token = _prepare_client_token(raw_token=os.getenv("DISCORD_BOT_TOKEN"))
-    database_path = _prepare_database_url(raw_url=os.getenv("DATABASE_URL"))
+    database_dsn = _prepare_database_url(raw_url=os.getenv("DATABASE_URL"))
     force_color_regeneration = _prepare_force_color_regeneration(
         raw_flag=os.getenv("FORCE_REGENERATE_COLORS")
     )
@@ -127,7 +105,7 @@ def load_config(env_file: str | Path | None = None) -> AppConfig:
 
     return AppConfig(
         discord=DiscordSettings(token=token),
-        database=DatabaseSettings(path=database_path),
+        database=DatabaseSettings(dsn=database_dsn),
         feature_flags=FeatureFlags(force_color_regeneration=force_color_regeneration),
     )
 

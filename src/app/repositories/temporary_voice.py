@@ -76,7 +76,7 @@ class TemporaryVoiceCategoryRepository:
     ) -> TemporaryVoiceCategory:
         query = """
         INSERT INTO temporary_vc_categories (guild_id, category_id, updated_by)
-        VALUES (?, ?, ?)
+        VALUES ($1, $2, $3)
         ON CONFLICT (guild_id)
         DO UPDATE SET category_id = excluded.category_id, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP
         RETURNING guild_id, category_id, updated_by, updated_at
@@ -90,7 +90,7 @@ class TemporaryVoiceCategoryRepository:
         query = """
         SELECT guild_id, category_id, updated_by, updated_at
         FROM temporary_vc_categories
-        WHERE guild_id = ?
+        WHERE guild_id = $1
         """
         row = await self._database.fetchrow(query, guild_id)
         if row is None:
@@ -101,7 +101,7 @@ class TemporaryVoiceCategoryRepository:
     async def delete_category(self, guild_id: int) -> None:
         LOGGER.debug("Deleting temporary voice category for guild_id=%d", guild_id)
         await self._database.execute(
-            "DELETE FROM temporary_vc_categories WHERE guild_id = ?", guild_id
+            "DELETE FROM temporary_vc_categories WHERE guild_id = $1", guild_id
         )
 
     @staticmethod
@@ -123,7 +123,7 @@ class TemporaryVoiceChannelRepository:
     ) -> TemporaryVoiceChannel:
         query = """
         INSERT INTO temporary_voice_channels (guild_id, owner_user_id, category_id)
-        VALUES (?, ?, ?)
+        VALUES ($1, $2, $3)
         RETURNING guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at
         """
         row = await self._database.fetchrow(query, guild_id, owner_user_id, category_id)
@@ -136,8 +136,8 @@ class TemporaryVoiceChannelRepository:
     ) -> TemporaryVoiceChannel:
         query = """
         UPDATE temporary_voice_channels
-        SET channel_id = ?, last_seen_at = CURRENT_TIMESTAMP
-        WHERE guild_id = ? AND owner_user_id = ?
+        SET channel_id = $1, last_seen_at = CURRENT_TIMESTAMP
+        WHERE guild_id = $2 AND owner_user_id = $3
         RETURNING guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at
         """
         row = await self._database.fetchrow(query, channel_id, guild_id, owner_user_id)
@@ -152,7 +152,7 @@ class TemporaryVoiceChannelRepository:
         query = """
         SELECT guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at
         FROM temporary_voice_channels
-        WHERE guild_id = ? AND owner_user_id = ?
+        WHERE guild_id = $1 AND owner_user_id = $2
         """
         row = await self._database.fetchrow(query, guild_id, owner_user_id)
         if row is None:
@@ -166,7 +166,7 @@ class TemporaryVoiceChannelRepository:
         query = """
         SELECT guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at
         FROM temporary_voice_channels
-        WHERE guild_id = ? AND channel_id = ?
+        WHERE guild_id = $1 AND channel_id = $2
         """
         row = await self._database.fetchrow(query, guild_id, channel_id)
         if row is None:
@@ -176,7 +176,7 @@ class TemporaryVoiceChannelRepository:
 
     async def delete_record(self, guild_id: int, owner_user_id: int) -> None:
         await self._database.execute(
-            "DELETE FROM temporary_voice_channels WHERE guild_id = ? AND owner_user_id = ?",
+            "DELETE FROM temporary_voice_channels WHERE guild_id = $1 AND owner_user_id = $2",
             guild_id,
             owner_user_id,
         )
@@ -188,7 +188,7 @@ class TemporaryVoiceChannelRepository:
 
     async def delete_by_channel(self, guild_id: int, channel_id: int) -> None:
         await self._database.execute(
-            "DELETE FROM temporary_voice_channels WHERE guild_id = ? AND channel_id = ?",
+            "DELETE FROM temporary_voice_channels WHERE guild_id = $1 AND channel_id = $2",
             guild_id,
             channel_id,
         )
@@ -202,7 +202,7 @@ class TemporaryVoiceChannelRepository:
         query = """
         SELECT guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at
         FROM temporary_voice_channels
-        WHERE guild_id = ?
+        WHERE guild_id = $1
         """
         rows = await self._database.fetch(query, guild_id)
         LOGGER.debug(
@@ -225,13 +225,13 @@ class TemporaryVoiceChannelRepository:
 
     async def purge_guild(self, guild_id: int) -> None:
         await self._database.execute(
-            "DELETE FROM temporary_voice_channels WHERE guild_id = ?", guild_id
+            "DELETE FROM temporary_voice_channels WHERE guild_id = $1", guild_id
         )
         LOGGER.debug("Purged temporary voice channel records for guild_id=%d", guild_id)
 
     async def touch_last_seen(self, guild_id: int, owner_user_id: int) -> None:
         await self._database.execute(
-            "UPDATE temporary_voice_channels SET last_seen_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND owner_user_id = ?",
+            "UPDATE temporary_voice_channels SET last_seen_at = CURRENT_TIMESTAMP WHERE guild_id = $1 AND owner_user_id = $2",
             guild_id,
             owner_user_id,
         )

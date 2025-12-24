@@ -41,7 +41,7 @@ class ChannelNicknameRuleRepository:
     ) -> ChannelNicknameRule:
         query = """
         INSERT INTO channel_nickname_rules (guild_id, channel_id, role_id, updated_by)
-        VALUES (?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (guild_id, channel_id)
         DO UPDATE SET role_id = excluded.role_id, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP
         RETURNING guild_id, channel_id, role_id, updated_by, updated_at
@@ -59,7 +59,7 @@ class ChannelNicknameRuleRepository:
         query = """
         SELECT guild_id, channel_id, role_id, updated_by, updated_at
         FROM channel_nickname_rules
-        WHERE guild_id = ? AND channel_id = ?
+        WHERE guild_id = $1 AND channel_id = $2
         """
         row = await self._database.fetchrow(query, guild_id, channel_id)
         if row is None:
