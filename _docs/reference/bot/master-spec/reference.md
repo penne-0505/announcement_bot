@@ -26,19 +26,38 @@ references:
 
 ## システム構成
 
-| モジュール                                | 役割                                                                                                                                                                 |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/config.py`                       | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `DATABASE_URL` を読み込み、`AppConfig` を返す。                                                                           |
+<<<<<<< HEAD
+
+| モジュール                                | 役割                                                                                                                                                                                                |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/config.py`                       | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `DATABASE_URL` を読み込み、`AppConfig` を返す。                                                                                                          |
 | `src/app/database.py`                     | Supabase Postgres への `asyncpg` 接続を管理し、`channel_nickname_rules` / `temporary_vc_categories` / `temporary_voice_channels` / `server_colors` を `CREATE TABLE IF NOT EXISTS` で自動作成する。 |
-| `src/app/container.py`                    | `Database` + 各 Repository を初期化し、`BotClient` とコマンド登録を `TemporaryVoiceChannelService` と合わせて返す。                                                  |
-| `src/app/runtime.py` / `src/main.py`      | ログ初期化の上で `build_discord_app` → `DiscordApplication.run()` を実行する CLI エントリポイント。                                                                  |
-| `src/bot/client.py`                       | `discord.Client` 拡張。`on_ready` で `tree.sync()` + 一時 VC レコード同期、`on_message` で監視チャンネルハンドラ、`on_voice_state_update` で一時 VC 自動削除を行う。 |
-| `src/bot/commands.py`                     | Slash コマンド `/setup`, `/nickname_sync_setup`, `/temporary_vc` を登録。                                                                                            |
-| `src/views/view.py`                       | `/setup` フローで利用する `SendModalView` / `SendMessageModal` を提供。                                                                                              |
-| `src/views/nickname_sync_setup.py`        | `/nickname_sync_setup` から呼び出す `NicknameSyncSetupView`（ChannelSelect + RoleSelect + 保存ボタン）。                                                             |
-| `src/bot/handlers.py`                     | 監視対象チャンネルの投稿内容をニックネームとしてメンバーに適用し、ロールを付与する共通ロジック。                                                                     |
-| `src/app/repositories/temporary_voice.py` | 一時 VC カテゴリ/チャンネルの永続化を行う。                                                                                                                          |
-| `src/app/services/temporary_voice.py`     | カテゴリ設定、VC 作成・削除、VoiceState 監視を統括する。                                                                                                             |
+| `src/app/container.py`                    | `Database` + 各 Repository を初期化し、`BotClient` とコマンド登録を `TemporaryVoiceChannelService` と合わせて返す。                                                                                 |
+| `src/app/runtime.py` / `src/main.py`      | ログ初期化の上で `build_discord_app` → `DiscordApplication.run()` を実行する CLI エントリポイント。                                                                                                 |
+| `src/bot/client.py`                       | `discord.Client` 拡張。`on_ready` で `tree.sync()` + 一時 VC レコード同期、`on_message` で監視チャンネルハンドラ、`on_voice_state_update` で一時 VC 自動削除を行う。                                |
+| `src/bot/commands.py`                     | Slash コマンド `/setup`, `/nickname_sync_setup`, `/temporary_vc` を登録。                                                                                                                           |
+| `src/views/view.py`                       | `/setup` フローで利用する `SendModalView` / `SendMessageModal` を提供。                                                                                                                             |
+| `src/views/nickname_sync_setup.py`        | `/nickname_sync_setup` から呼び出す `NicknameSyncSetupView`（ChannelSelect + RoleSelect + 保存ボタン）。                                                                                            |
+| `src/bot/handlers.py`                     | 監視対象チャンネルの投稿内容をニックネームとしてメンバーに適用し、ロールを付与する共通ロジック。                                                                                                    |
+| `src/app/repositories/temporary_voice.py` | 一時 VC カテゴリ/チャンネルの永続化を行う。                                                                                                                                                         |
+| `src/app/services/temporary_voice.py`     | カテゴリ設定、VC 作成・削除、VoiceState 監視を統括する。                                                                                                                                            |
+
+=======
+| モジュール | 役割 |
+| --- | --- |
+| `src/app/config.py` | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `DATABASE_URL` を読み込み、`AppConfig` を返す。 |
+| `src/app/database.py` | asyncpg プールを管理し、`channel_nickname_rules` / `temporary_vc_categories` / `temporary_voice_channels` を `CREATE TABLE IF NOT EXISTS` で自動作成する。 |
+| `src/app/container.py` | `Database` + 各 Repository を初期化し、`BotClient` とコマンド登録を `TemporaryVoiceChannelService` と合わせて返す。 |
+| `src/app/runtime.py` / `src/main.py` | ログ初期化の上で `build_discord_app` → `DiscordApplication.run()` を実行する CLI エントリポイント。 |
+| `src/bot/client.py` | `discord.Client` 拡張。`on_ready` で `tree.sync()` + 一時 VC レコード同期、`on_message` で監視チャンネルハンドラ、`on_voice_state_update` で一時 VC 自動削除を行う。 |
+| `src/bot/commands.py` | Slash コマンド `/setup`, `/nickname_sync_setup`, `/temporary_vc` を登録。 |
+| `src/views/view.py` | `/setup` フローで利用する `SendModalView` / `SendMessageModal` を提供。 |
+| `src/views/nickname_sync_setup.py` | `/nickname_sync_setup` から呼び出す `NicknameSyncSetupView`（ChannelSelect + RoleSelect + 保存ボタン）。 |
+| `src/bot/handlers.py` | 監視対象チャンネルの投稿内容をニックネームとしてメンバーに適用し、ロールを付与する共通ロジック。 |
+| `src/app/repositories/temporary_voice.py` | 一時 VC カテゴリ/チャンネルの永続化を行う。 |
+| `src/app/services/temporary_voice.py` | カテゴリ設定、VC 作成・削除、VoiceState 監視を統括する。 |
+
+> > > > > > > parent of bc3b9a5 (feat: add FORCE_REGENERATE_COLORS flag for guild embed color regeneration)
 
 ## 実行環境と依存
 
@@ -52,26 +71,46 @@ references:
 
 ## 設定
 
+<<<<<<< HEAD
+
 | 変数                      | 必須 | 説明                                                                                                                                             |
 | ------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `DISCORD_BOT_TOKEN`       | ✅   | Discord Bot のトークン。未設定時は `ValueError` を投げ、runtime で例外ログを出して終了 (`src/app/config.py:50-78`, `src/app/runtime.py:12-27`)。 |
-| `DATABASE_URL`            | ✅   | Postgres 接続文字列（例: `postgresql://user:pass@host:5432/db`）。Supabase の接続文字列を指定する。                                                       |
+| `DATABASE_URL`            | ✅   | Postgres 接続文字列（例: `postgresql://user:pass@host:5432/db`）。Supabase の接続文字列を指定する。                                              |
 | `FORCE_REGENERATE_COLORS` | 任意 | `true/1/yes/on` のいずれかで **起動時に全 Guild の Embed カラーを再生成** する。未指定/空文字は通常モード（未登録 Guild のみ割当）。             |
 
+- # `.env.example` に両変数を記載済み。`load_config()` は `dotenv` による `.env` 読み込み → 環境変数優先の挙動。
+  | 変数                | 必須 | 説明                                                                                                                                             |
+  | ------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | `DISCORD_BOT_TOKEN` | ✅   | Discord Bot のトークン。未設定時は `ValueError` を投げ、runtime で例外ログを出して終了 (`src/app/config.py:50-78`, `src/app/runtime.py:12-27`)。 |
+  | `DATABASE_URL`      | ✅   | Railway Postgres 等の接続文字列。未設定時は `ValueError` (`src/app/config.py:58-79`)。                                                           |
 - `.env.example` に両変数を記載済み。`load_config()` は `dotenv` による `.env` 読み込み → 環境変数優先の挙動。
+  > > > > > > > parent of bc3b9a5 (feat: add FORCE_REGENERATE_COLORS flag for guild embed color regeneration)
 
 ## データモデル
 
 `channel_nickname_rules`（`src/app/database.py:64-94`）
 
-| カラム       | 型                       | 説明                                         |
+<<<<<<< HEAD
+| カラム | 型 | 説明 |
 | ------------ | ------------------------ | -------------------------------------------- |
-| `guild_id`   | BIGINT                  | 設定対象ギルド ID                            |
-| `channel_id` | BIGINT                  | 監視対象チャンネル ID                        |
-| `role_id`    | BIGINT                  | 自動付与するロール ID                        |
-| `updated_by` | BIGINT                  | 設定を保存したユーザー ID                    |
-| `updated_at` | TIMESTAMPTZ             | `CURRENT_TIMESTAMP` デフォルト。リポジトリ更新時に上書き    |
-| 主キー       | `(guild_id, channel_id)` |
+| `guild_id` | BIGINT | 設定対象ギルド ID |
+| `channel_id` | BIGINT | 監視対象チャンネル ID |
+| `role_id` | BIGINT | 自動付与するロール ID |
+| `updated_by` | BIGINT | 設定を保存したユーザー ID |
+| `updated_at` | TIMESTAMPTZ | `CURRENT_TIMESTAMP` デフォルト。リポジトリ更新時に上書き |
+| 主キー | `(guild_id, channel_id)` |
+=======
+| カラム | 型 | 説明 |
+| --- | --- | --- |
+| `guild_id` | BIGINT | 設定対象ギルド ID |
+| `channel_id` | BIGINT | 監視対象チャンネル ID |
+| `role_id` | BIGINT | 自動付与するロール ID |
+| `updated_by` | BIGINT | 設定を保存したユーザー ID |
+| `updated_at` | TIMESTAMPTZ | `NOW()` デフォルト。リポジトリ更新時に上書き |
+| 主キー | `(guild_id, channel_id)` |
+
+> > > > > > > parent of bc3b9a5 (feat: add FORCE_REGENERATE_COLORS flag for guild embed color regeneration)
 
 `ChannelNicknameRuleRepository` (`src/app/repositories/channel_rules.py:25-62`)
 
@@ -82,8 +121,8 @@ references:
 
 | テーブル                   | 目的                             | 主なカラム                                                                                             |
 | -------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `temporary_vc_categories`  | ギルドごとの一時 VC カテゴリ設定 | `guild_id BIGINT PRIMARY KEY`, `category_id BIGINT`, `updated_by BIGINT`, `updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP` |
-| `temporary_voice_channels` | ユーザーごとの一時 VC 所有情報   | `guild_id BIGINT`, `owner_user_id BIGINT`, `channel_id BIGINT NULL`, `category_id BIGINT`, `created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`, `last_seen_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP` |
+| `temporary_vc_categories`  | ギルドごとの一時 VC カテゴリ設定 | `guild_id PK`, `category_id`, `updated_by`, `updated_at`                                               |
+| `temporary_voice_channels` | ユーザーごとの一時 VC 所有情報   | `guild_id`, `owner_user_id` (PK), `channel_id (NULL許容)`, `category_id`, `created_at`, `last_seen_at` |
 
 `TemporaryVoiceCategoryRepository` はカテゴリの upsert/get/delete を行い、`TemporaryVoiceChannelRepository` は VC レコードの `create_record` / `update_channel_id` / `get_by_owner` / `get_by_channel` / `purge_guild` / `touch_last_seen` を提供する。
 

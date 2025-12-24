@@ -106,27 +106,6 @@ class ColorAssignmentService:
         )
         return color_value
 
-    async def regenerate_colors(
-        self, guilds: Sequence[discord.Guild]
-    ) -> dict[int, int]:
-        """すべての Guild に対してカラーを再生成し、保存する。"""
-
-        assigned: dict[int, int] = {}
-        existing_values: list[int] = []
-
-        for guild in guilds:
-            color_value = self.generate_unique_color(existing_values)
-            await self._repository.save_color(guild.id, color_value)
-            assigned[guild.id] = color_value
-            existing_values.append(color_value)
-            LOGGER.info(
-                "Guild %s のカラーを再生成し 0x%06X を保存しました。",
-                guild.id,
-                color_value,
-            )
-
-        return assigned
-
     @staticmethod
     def _distance(color_a: int, color_b: int) -> float:
         ra, ga, ba = ColorAssignmentService._to_rgb(color_a)

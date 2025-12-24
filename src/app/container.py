@@ -54,17 +54,10 @@ async def build_discord_app(config: AppConfig) -> DiscordApplication:
         rule_store=rule_repository,
         temporary_voice_service=temporary_voice_service,
         color_assignment_service=color_assignment_service,
-        force_color_regeneration=config.feature_flags.force_color_regeneration,
     )
-    await register_commands(
-        client,
-        rule_store=rule_repository,
-        temporary_voice_service=temporary_voice_service,
-    )
+    await register_commands(client, rule_store=rule_repository, temporary_voice_service=temporary_voice_service)
     LOGGER.info("Discord クライアントの初期化が完了し、コマンドを登録しました。")
-    return DiscordApplication(
-        client=client, token=config.discord.token, database=database
-    )
+    return DiscordApplication(client=client, token=config.discord.token, database=database)
 
 
 __all__ = ["DiscordApplication", "build_discord_app"]

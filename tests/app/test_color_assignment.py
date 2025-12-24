@@ -33,11 +33,7 @@ class FakeServerColorRepo:
         return self._store.get(guild_id)
 
     async def save_color(self, guild_id: int, color_value: int):
-        record = ServerColor(
-            guild_id=guild_id,
-            color_value=color_value,
-            created_at=datetime.now(timezone.utc),
-        )
+        record = ServerColor(guild_id=guild_id, color_value=color_value, created_at=datetime.now(timezone.utc))
         self._store[guild_id] = record
         self.saved.append(record)
         return record
@@ -68,40 +64,15 @@ async def test_generate_unique_color_raises_after_max_attempts():
 
 @pytest.mark.asyncio
 async def test_assign_colors_to_new_guilds_adds_only_missing():
-    existing = ServerColor(
-        guild_id=1, color_value=0x112233, created_at=datetime.now(timezone.utc)
-    )
+    existing = ServerColor(guild_id=1, color_value=0x112233, created_at=datetime.now(timezone.utc))
     repo = FakeServerColorRepo([existing])
     config = ColorGenerationConfig(distance_threshold=20, max_attempts=5)
     rng = SequenceRandom([0x112240, 0x334455, 0x556677])
     service = ColorAssignmentService(repo, config=config, rng=rng)
 
-    guilds = [
-        types.SimpleNamespace(id=1),
-        types.SimpleNamespace(id=2),
-        types.SimpleNamespace(id=3),
-    ]
+    guilds = [types.SimpleNamespace(id=1), types.SimpleNamespace(id=2), types.SimpleNamespace(id=3)]
     assigned = await service.assign_colors_to_new_guilds(guilds)
 
     assert assigned[1] == 0x112233
     assert assigned[2] != assigned[3]
     assert all(record.guild_id in (2, 3) for record in repo.saved)
-
-
-@pytest.mark.asyncio
-async def test_regenerate_colors_overwrites_all_guilds():
-    existing = ServerColor(
-        guild_id=1, color_value=0x112233, created_at=datetime.now(timezone.utc)
-    )
-    repo = FakeServerColorRepo([existing])
-    config = ColorGenerationConfig(distance_threshold=10, max_attempts=5)
-    rng = SequenceRandom([0x000000, 0x00FFFF])
-    service = ColorAssignmentService(repo, config=config, rng=rng)
-
-    guilds = [types.SimpleNamespace(id=1), types.SimpleNamespace(id=2)]
-    assigned = await service.regenerate_colors(guilds)
-
-    assert set(assigned.keys()) == {1, 2}
-    assert len(repo.saved) == 2
-    assert repo._store[1].color_value != 0x112233
-    assert len(set(assigned.values())) == 2
