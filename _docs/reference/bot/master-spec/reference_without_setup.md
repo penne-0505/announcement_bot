@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-11-23"
+updated: "2025-12-24"
 related_plan:
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
 related_intents:
@@ -36,7 +36,7 @@ references:
 | 変数 | 必須 | 説明 |
 | --- | --- | --- |
 | `DISCORD_BOT_TOKEN` | ✅ | Discord Bot トークン。 |
-| `DATABASE_URL` | ✅ | SQLite ファイルパス (例: `sqlite:///./data/announcement_bot.sqlite3` / `:memory:`)。 |
+| `DATABASE_URL` | 任意 | SQLite ファイルパス (例: `sqlite:///./data/announcement_bot.sqlite3` / `:memory:`)。未設定時は `./data/announcement_bot.sqlite3` を使用。 |
 - `.env.example` に両方記載。`load_config()` が `.env` を読み込んだ上で値を検証する。
 
 ## データモデル

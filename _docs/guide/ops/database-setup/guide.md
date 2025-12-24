@@ -21,7 +21,7 @@ references:
 - 開発環境とプロダクションではパスのみを切り替えればよく、`DATABASE_URL` を環境変数で切り替えることでホスト構成ごとの柔軟性を担保する。
 
 ## 役割と要件
-- 必須環境変数: `DATABASE_URL`（例: `sqlite:///./data/announcement_bot.sqlite3`、`:memory:`、`/var/lib/app/db/announcement_bot.sqlite3`）。`load_config()` は指定の書式を検証し、空文字は `ValueError` で起動を止める。
+- 推奨環境変数: `DATABASE_URL`（例: `sqlite:///./data/announcement_bot.sqlite3`、`:memory:`、`/var/lib/app/db/announcement_bot.sqlite3`）。未設定の場合は `./data/announcement_bot.sqlite3` にフォールバックする。
 - `DATABASE_URL` がファイルパスの場合、Bot は起動時に親ディレクトリと SQLite ファイルを自動作成する。権限や SELinux/ファイルシステムの制限を考慮して `announcement_bot` ユーザーが書き込み可能であることを確認する。
 - `aiosqlite` の接続は単一 `Connection` を再利用する設計だが、`asyncio.Lock` で直列化されているため高頻度アクセスでも整合性が保たれる。トランザクションは自動コミット方式（`connection.commit()`）であり、必要に応じてアプリ側で明示的に操作する。
 
@@ -32,6 +32,7 @@ references:
 
 ## SQLite ファイル設定
 - `DATABASE_URL` には `sqlite:///absolute/path/to/db.sqlite3` や `sqlite:///./relative/path.db`（起動ディレクトリ基準）を指定できる。`sqlite:///:memory:` を指定するとインメモリで起動するためテスト用途に向く。
+- `DATABASE_URL` を省略した場合は `./data/announcement_bot.sqlite3` が使用される。
 - 相対パスを使う場合は `.env` を置くディレクトリと Bot 起動位置を一致させる。ディレクトリやファイルは自動作成されるが、権限不足だと `aiosqlite.OperationalError: unable to open database file` になるため注意する。
 - 複数インスタンスを動かす場合は `DATABASE_URL` をインスタンスごとに分け、ファイルを共有しない設計とする（SQLite は複数書き込みに制約がある）。
 
@@ -65,7 +66,6 @@ references:
 ## トラブルシューティング
 | 症状 | 原因 | 対応 |
 | --- | --- | --- |
-| `ValueError: DATABASE_URL is not set` | 環境変数未設定 | `.env`/指定箇所へ `DATABASE_URL` を設定し、Bot を再起動。 |
 | `aiosqlite.OperationalError: unable to open database file` | 権限不足/パス不正 | `DATABASE_URL` のパスを確認し、ディレクトリのオーナーとパーミッション (`chmod 755` など) を設定。 |
 | `aiosqlite.DatabaseError: database disk image is malformed` | DB ファイルが破損 | バックアップから復元するか、空ファイルに差し替え。復元後も従来のレコードが必要な場合は `sqlite3` で `SELECT` して確認する。 |
 | `sqlite3.IntegrityError: UNIQUE constraint failed` | 一意制約違反（同じ guild_id + channel_id など） | 重複レコードを `DELETE` → `INSERT` で修正するか、Bot を再起動して仮レコードを上書き。|

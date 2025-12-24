@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-11-23"
+updated: "2025-12-24"
 related_plan:
   - "docs/plan/bot/messaging-modal-port/plan.md"
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
@@ -55,7 +55,7 @@ references:
 | 変数                      | 必須 | 説明                                                                                                                                             |
 | ------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `DISCORD_BOT_TOKEN`       | ✅   | Discord Bot のトークン。未設定時は `ValueError` を投げ、runtime で例外ログを出して終了 (`src/app/config.py:50-78`, `src/app/runtime.py:12-27`)。 |
-| `DATABASE_URL`            | ✅   | SQLite ファイルパス（例: `sqlite:///./data/announcement_bot.sqlite3` や `:memory:`）。未設定時は `ValueError` (`src/app/config.py:58-79`)。                                                       |
+| `DATABASE_URL`            | 任意 | SQLite ファイルパス（例: `sqlite:///./data/announcement_bot.sqlite3` や `:memory:`）。未設定時は `./data/announcement_bot.sqlite3` を使用。                                                       |
 | `FORCE_REGENERATE_COLORS` | 任意 | `true/1/yes/on` のいずれかで **起動時に全 Guild の Embed カラーを再生成** する。未指定/空文字は通常モード（未登録 Guild のみ割当）。             |
 
 - `.env.example` に両変数を記載済み。`load_config()` は `dotenv` による `.env` 読み込み → 環境変数優先の挙動。

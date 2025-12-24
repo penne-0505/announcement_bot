@@ -68,7 +68,12 @@ def _prepare_database_url(raw_url: str | None) -> Path:
     """`DATABASE_URL` を SQLite ファイルパスへ整形する。"""
 
     if raw_url is None or raw_url.strip() == "":
-        raise ValueError("DATABASE_URL is not set in environment variables.")
+        default_path = Path("./data/announcement_bot.sqlite3")
+        LOGGER.warning(
+            "DATABASE_URL is not set. Falling back to default SQLite path: %s",
+            default_path,
+        )
+        return default_path
 
     normalized = raw_url.strip()
     parsed = urlparse(normalized)
