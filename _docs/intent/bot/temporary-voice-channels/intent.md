@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.1.0"
 created: "2025-11-14"
-updated: "2025-11-14"
+updated: "2025-12-24"
 related_plan: "docs/plan/bot/temporary-voice-channels/plan.md"
 owners:
   - "announcement bot maintainers"
@@ -16,7 +16,7 @@ references:
 ## 背景
 - Clover サーバーでは、配信用ルームやスタッフ控室などで即席のボイスチャンネル需要が増えているが、カテゴリ作成や権限設定を管理者が手動で行うと待ち時間が発生しがちだった。
 - 既存 Bot はテキストチャンネル監視に限定されており、VoiceState Intent を活用した機能が存在しないため、plan (`docs/plan/bot/temporary-voice-channels/plan.md`) で定義した要件を実装する。
-- 永続化には既存の SQLite/aiosqlite を継続利用し、ローカル/ホストベースの運用負荷を最小限に抑える。
+- 永続化には Supabase Postgres/asyncpg を利用し、ローカル/ホスト依存を排除する。
 
 ## 決定事項
 1. **Slash コマンド `/temporary_vc` を導入**し、`category`（Manage Channels 権限必須）、`create`、`reset` の 3 サブコマンドでカテゴリ登録～ユーザー自身の一時VC管理まで完結させる。カテゴリ更新時には旧 VC を全削除し、結果を INFO ログと応答メッセージで通知する。
@@ -27,7 +27,7 @@ references:
 
 ## トレードオフ
 - View UI ではなく Slash コマンドでカテゴリを受け付けたため、操作はログベースで分かりやすい反面、「カテゴリを選択する GUI」は提供していない。将来的に需要があれば追加検討する。
-- 永続層は `aiosqlite` + SQL 直書きのまま維持し、トランザクションを導入していない。作成フローは「INSERT → Discord API → UPDATE」で順次実行することで整合性を確保する。
+- 永続層は `asyncpg` + SQL 直書きのまま維持し、トランザクションを導入していない。作成フローは「INSERT → Discord API → UPDATE」で順次実行することで整合性を確保する。
 - VoiceState 監視は `discord.Intents.all()` に依存する。Intent を細かく制限していないため、Bot 設定で VoiceState Intent を無効化すると機能しないが、ログで気付けるようにした。
 
 ## 影響範囲

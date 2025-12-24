@@ -34,22 +34,22 @@ related_intents:
 ## データモデル: `channel_nickname_rules`
 | カラム | 型 | 説明 |
 | --- | --- | --- |
-| `guild_id` | INTEGER | ギルド ID |
-| `channel_id` | INTEGER | 監視対象チャンネル ID |
-| `role_id` | INTEGER | 付与するロール ID |
-| `updated_by` | INTEGER | Slash コマンド実行者のユーザー ID |
-| `updated_at` | TEXT | 最終更新日時 (`CURRENT_TIMESTAMP` デフォルト、ISO8601 文字列) |
+| `guild_id` | BIGINT | ギルド ID |
+| `channel_id` | BIGINT | 監視対象チャンネル ID |
+| `role_id` | BIGINT | 付与するロール ID |
+| `updated_by` | BIGINT | Slash コマンド実行者のユーザー ID |
+| `updated_at` | TIMESTAMPTZ | 最終更新日時 (`CURRENT_TIMESTAMP` デフォルト) |
 | PK | `(guild_id, channel_id)` |
 
 ## `app.database.Database`
-- `connect()` で SQLite ファイルへの `aiosqlite` 接続を生成し、`CREATE TABLE IF NOT EXISTS channel_nickname_rules ...` を実行する。
+- `connect()` で Supabase Postgres への `asyncpg` 接続プールを生成し、`CREATE TABLE IF NOT EXISTS channel_nickname_rules ...` を実行する。
 - `fetchrow(query, *args)` / `execute(query, *args)` を提供し、コネクションはコンテキストで自動解放。
 - `close()` でプールを破棄し、Bot シャットダウン時に呼び出される。
 
 ## `ChannelNicknameRuleRepository`
 - `upsert_rule(guild_id, channel_id, role_id, updated_by)` → `ChannelNicknameRule`
 - `get_rule_for_channel(guild_id, channel_id)` → Optional[`ChannelNicknameRule`]
-- `aiosqlite.Row` を dataclass へ詰め替えて返却。
+- `asyncpg.Record` を dataclass へ詰め替えて返却。
 
 ## メッセージ処理
 1. `BotClient.on_message` が以下条件で `enforce_nickname_and_role` を呼ぶ:

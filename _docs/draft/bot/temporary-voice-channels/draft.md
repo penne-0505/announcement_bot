@@ -13,7 +13,7 @@ references:
 state: "exploring"
 hypothesis:
   - "VC を自力で作成したい利用者の多くは、管理者の代わりに柔軟なチャンネル管理権限を一時的に求めている。"
-  - "既存 SQLite 永続化を流用すれば、TinyDB などの追加依存なしで所有情報を復元できる。"
+  - "既存 Supabase Postgres 永続化を流用すれば、TinyDB などの追加依存なしで所有情報を復元できる。"
 options:
   - "Slash コマンド `/temporary_vc` (サブコマンド: `configure_category`, `create`, `reset`) を追加し、View なしでギルド専用操作を完結させる。"
   - "既存 `/setup` の View を流用し、ボタン押下で VC セットアップ Dialog を表示する。→ UI 一貫性は高いが、情報入力欄が増えて複雑化する。"
@@ -28,7 +28,7 @@ ttl_days: 30
 
 ## 背景整理
 - 既存 Bot は `/setup` と `/nickname_sync_setup` を中心にテキストチャンネルの操作とニックネーム監視を提供しており、`BotClient` は `discord.Intents.all()` を有効化済み (`src/bot/client.py:16-48`)。
-- `Database` / `ChannelNicknameRuleRepository` が `aiosqlite` で永続化を担うため、追加ドメインでも SQLite を使った方が実装コストが低く、デプロイも単一のホスト + ローカルストレージで完結する。
+- `Database` / `ChannelNicknameRuleRepository` が `asyncpg` で永続化を担うため、追加ドメインでも Supabase Postgres を使った方が実装コストが低く、デプロイも単一のホスト + 外部DBで完結する。
 - `docs/reference/bot/master-spec/reference.md` ではデータアクセスの単一窓口を `app.repositories` にまとめる前提が示されている。TinyDB 前提の要件があるが、既存意図 (`docs/intent/bot/channel-nickname-role-sync/intent.md`) でも「後続機能で必要時に導入」と記載されており、今回も Postgres で代替して整合性を保つ。
 
 ## 現状実装との対応づけ
@@ -37,7 +37,7 @@ ttl_days: 30
 | ギルドごとに一時VCカテゴリを事前設定 | カテゴリ設定機構は未実装。Slash コマンドの実装例は `/nickname_sync_setup` | `ChannelSelect` (category) やサブコマンドで `temporary_vc_categories` テーブルへ upsert する。設定がなければ作成拒否レスポンスを返す。 |
 | 1 ユーザー 1 件まで | 永続化は 1 チャンネル単位の監視用のみ | `temporary_voice_channels` テーブルに `UNIQUE(guild_id, owner_user_id)` 制約を設け、DB レベルで二重作成を防止。 |
 | `ユーザー名のVC` + manage_channels 付与 | ハンドラはテキスト編集/ロール付与のみ | `discord.Guild.create_voice_channel` と `discord.PermissionOverwrite`（Context7参照: Permission Overwrite 設定可）で所有者へ `manage_channels=True` を付与。名前は display_name を 32 文字程度にトリムする。 |
-| TinyDB で所有情報を復元 | プロジェクトは SQLite 駆動 | TinyDB の要求は「再起動後に復元できる永続層」の意図と捉え、SQLite + 既存 Database を流用。`TinyDB` 導入は非互換性が高いため採用しない旨をドラフトに残す。 |
+| TinyDB で所有情報を復元 | プロジェクトは Supabase Postgres 駆動 | TinyDB の要求は「再起動後に復元できる永続層」の意図と捉え、Supabase Postgres + 既存 Database を流用。`TinyDB` 導入は非互換性が高いため採用しない旨をドラフトに残す。 |
 | 音声ステート監視で無人 VC 自動削除 | 現在 `on_message` のみ実装 | `BotClient.on_voice_state_update` を override。`voice_state.channel` が空 or 無人になったら `TemporaryVoiceChannelService.cleanup_if_empty()` を呼ぶ。 |
 | カテゴリ設定変更時の既存 VC 破棄 | 設定概念なし | カテゴリ更新時に `temporary_voice_channels` を SELECT し、該当ギルドのチャンネルを削除 → レコード削除。結果をログで通知し、ユーザーにも ephemeral で案内する。 |
 

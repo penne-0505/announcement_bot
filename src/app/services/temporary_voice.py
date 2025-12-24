@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import Sequence
 
+import asyncpg
 import discord
 
 from app.repositories import (
@@ -112,11 +113,7 @@ class TemporaryVoiceChannelService:
 
         try:
             record = await self._channel_repo.create_record(guild.id, member.id, category_entity.category_id)
-        except Exception as exc:
-            from asyncpg import UniqueViolationError
-
-            if not isinstance(exc, UniqueViolationError):
-                raise
+        except asyncpg.UniqueViolationError as exc:
             existing_record = await self._channel_repo.get_by_owner(guild.id, member.id)
             if existing_record is not None:
                 raise TemporaryVoiceChannelExistsError(existing_record) from exc

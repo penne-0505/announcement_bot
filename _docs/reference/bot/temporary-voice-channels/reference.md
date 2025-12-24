@@ -38,30 +38,30 @@ references:
 - 対象レコードが見つからない場合は「管理対象の一時VCは登録されていません。」と通知する。
 
 ## データモデル
-- SQLite ファイルに `aiosqlite` で接続し、`Database._ensure_schema()` による `CREATE TABLE IF NOT EXISTS` でスキーマが自動準備される。
+- Supabase Postgres に `asyncpg` で接続し、`Database._ensure_schema()` による `CREATE TABLE IF NOT EXISTS` でスキーマが自動準備される。
 
 ### `temporary_vc_categories`
 | カラム | 型 | 説明 |
 | --- | --- | --- |
-| `guild_id` | INTEGER | ギルド ID（PK） |
-| `category_id` | INTEGER | 一時VCを作成するカテゴリの ID |
-| `updated_by` | INTEGER | 設定変更を実行したユーザー ID |
-| `updated_at` | TEXT | 最終更新日時（`CURRENT_TIMESTAMP` デフォルト、ISO8601 文字列） |
+| `guild_id` | BIGINT | ギルド ID（PK） |
+| `category_id` | BIGINT | 一時VCを作成するカテゴリの ID |
+| `updated_by` | BIGINT | 設定変更を実行したユーザー ID |
+| `updated_at` | TIMESTAMPTZ | 最終更新日時（`CURRENT_TIMESTAMP` デフォルト） |
 
 ### `temporary_voice_channels`
 | カラム | 型 | 説明 |
 | --- | --- | --- |
-| `guild_id` | INTEGER | ギルド ID |
-| `owner_user_id` | INTEGER | VC 所有者 (Slash 実行者) |
-| `channel_id` | INTEGER | 作成済み VC の ID（作成中は NULL） |
-| `category_id` | INTEGER | 作成当時のカテゴリ ID |
-| `created_at` | TEXT | レコード作成日時（`CURRENT_TIMESTAMP` デフォルト） |
-| `last_seen_at` | TEXT | VoiceState 受信日時（`CURRENT_TIMESTAMP` デフォルト、`touch_last_seen` で更新） |
+| `guild_id` | BIGINT | ギルド ID |
+| `owner_user_id` | BIGINT | VC 所有者 (Slash 実行者) |
+| `channel_id` | BIGINT | 作成済み VC の ID（作成中は NULL） |
+| `category_id` | BIGINT | 作成当時のカテゴリ ID |
+| `created_at` | TIMESTAMPTZ | レコード作成日時（`CURRENT_TIMESTAMP` デフォルト） |
+| `last_seen_at` | TIMESTAMPTZ | VoiceState 受信日時（`CURRENT_TIMESTAMP` デフォルト、`touch_last_seen` で更新） |
 | PK | `(guild_id, owner_user_id)` |
 
 ## サービス挙動
 - `TemporaryVoiceChannelService.configure_category()` はカテゴリ更新後に `purge_guild()` でレコードをクリアし、新カテゴリを `upsert_category()` で保存する。
-- `create_temporary_channel()` は `temporary_voice_channels` に仮レコードを作成 → Discord API で VC 作成 → `update_channel_id()` で `channel_id` を記録する。API 失敗時はレコードを削除してロールバックする。作成直前に `get_by_owner()` で存在チェックし、`sqlite3.IntegrityError`（ユニーク制約違反）を `TemporaryVoiceChannelExistsError` に置き換えて制御されたエラー応答とするため、二重送信でも Discord API 側の汎用エラーにならない。
+- `create_temporary_channel()` は `temporary_voice_channels` に仮レコードを作成 → Discord API で VC 作成 → `update_channel_id()` で `channel_id` を記録する。API 失敗時はレコードを削除してロールバックする。作成直前に `get_by_owner()` で存在チェックし、`asyncpg.UniqueViolationError`（ユニーク制約違反）を `TemporaryVoiceChannelExistsError` に置き換えて制御されたエラー応答とするため、二重送信でも Discord API 側の汎用エラーにならない。
 - `handle_voice_state_update(member, before_channel, after_channel)`:
   - `before_channel.members` が空になった場合に `channel.delete(reason="Temporary voice channel expired")` を実行し、レコードも削除。
   - `after_channel` が管理対象なら `touch_last_seen()` で滞在を更新。

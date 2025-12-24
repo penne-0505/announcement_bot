@@ -13,13 +13,13 @@ references:
 scope:
   - "ギルド管理者が Slash コマンドから一時VC用カテゴリを登録・更新できるようにし、未設定状態では作成リクエストを拒否する。"
   - "一般ユーザーが `/temporary_vc create` で 1 人 1 件の VC を作成でき、チャンネル名と権限上書きを自動付与する。"
-  - "VoiceState 更新を監視して無人になったチャンネルを自動削除し、SQLite ファイル上の所有情報を同期する。"
+  - "VoiceState 更新を監視して無人になったチャンネルを自動削除し、Supabase Postgres 上の所有情報を同期する。"
   - "カテゴリ設定変更時に既存一時VCを破棄し、整合性の取れた状態で再作成に備える。"
 non_goals:
   - "複数カテゴリや階層的なテンプレート管理。"
   - "Web ダッシュボード/外部 UI での設定編集。"
   - "複数ユーザー共同所有や権限カスタム UI。"
-  - "TinyDB など別ストレージの導入（SQLite ファイルの `Database` をそのまま利用する）。"
+  - "TinyDB など別ストレージの導入（Supabase Postgres の `Database` をそのまま利用する）。"
 requirements:
   functional:
     - "カテゴリ未設定時や削除済みの場合はエラーメッセージを返し、VC 作成を実行しない。"
@@ -29,10 +29,10 @@ requirements:
     - "カテゴリ更新時は該当ギルドの一時VCを全削除＋レコードレベルでクリアする。"
   non_functional:
     - "DB 書き込みの整合性とエラーハンドリング（API 失敗時のロールバック）。"
-  - "SQLite ファイルと Discord API のみで完結し、追加インフラを不要にする。"
+  - "Supabase Postgres と Discord API のみで完結し、追加インフラを不要にする。"
     - "ログで主要イベント（作成・削除・失敗）を INFO/WARN で追跡できる。"
 constraints:
-  - "既存 `aiosqlite` ベースの `Database` を拡張し、外部 ORM/TinyDB は採用しない。"
+  - "既存 `asyncpg` ベースの `Database` を拡張し、外部 ORM/TinyDB は採用しない。"
   - "Slash コマンドは discord.py 2.6 系で提供される `app_commands` を利用する。"
   - "Bot には Voice State Intent を必須とし、Guild ごとの CategorySelect は Discord 標準コンポーネントに限定する。"
 api_changes:
@@ -77,7 +77,7 @@ owners:
 ## 背景
 - Clover サーバーではイベント時に少人数で会話できる一時的な VC のニーズがあり、現在は管理者が手動でカテゴリ作成と権限設定を行っている。
 - 既存 Bot はテキストチャンネル操作とニックネーム同期機能のみを提供しており、VoiceState イベントは未活用。
-- 要件に TinyDB が挙げられているが、プロジェクトは既に SQLite を前提に `Database`/`ChannelNicknameRuleRepository` を整備している。再起動後の整合性目的を満たすため、同じ技術基盤で一時VC情報も管理する。
+- 要件に TinyDB が挙げられているが、プロジェクトは既に Supabase Postgres を前提に `Database`/`ChannelNicknameRuleRepository` を整備している。再起動後の整合性目的を満たすため、同じ技術基盤で一時VC情報も管理する。
 
 ## 目的
 1. 管理者がギルドごとに一時VCカテゴリを明示的に設定し、未設定状態を防止する。
@@ -93,7 +93,7 @@ owners:
 | `TemporaryVoiceChannelService` | Slash コマンド・VoiceState ハンドラから呼び出されるドメインロジック（権限設定、名前生成、整合性処理）。 |
 | `bot.commands` | `/temporary_vc category|create|reset` を登録し、ephemeral レスポンスで結果を通知。 |
 | `bot.client.BotClient` | `on_voice_state_update` を override し、対象 VC の空判定と削除を実行。 |
-| `app.database.Database` | スキーマ初期化に一時VCテーブルを追加し、既存 `aiosqlite` 接続を共有。 |
+| `app.database.Database` | スキーマ初期化に一時VCテーブルを追加し、既存 `asyncpg` 接続を共有。 |
 
 ## Slash コマンド設計
 - `/temporary_vc category`
@@ -135,7 +135,7 @@ owners:
 | 1 ユーザー 1 件制限がバイパスされる（DB レース） | 重複VCが発生 | UNIQUE 制約 + エラーハンドリングで再試行時にも一意性を強制。 |
 
 ## 依存・前提
-- discord.py 2.6.x, aiosqlite >=0.20.0, Python 3.12。
+- discord.py 2.6.x, asyncpg >=0.29.0, Python 3.12。
 - Bot ロールが対象カテゴリへチャンネル作成・削除できる権限を保持していること。
 - Intents: `Intents.voice_states` が True、Portal 側でも有効化済み。
 
