@@ -71,6 +71,7 @@ class ColorAssignmentService:
         """既存登録を尊重しつつ未登録 Guild にカラーを割り当てる。"""
 
         stored = await self._repository.get_all_colors()
+        LOGGER.debug("Existing stored colors: %d", len(stored))
         assigned: dict[int, int] = {
             color.guild_id: color.color_value for color in stored
         }

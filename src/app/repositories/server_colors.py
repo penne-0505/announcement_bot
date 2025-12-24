@@ -3,9 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, Sequence
+import logging
 
 from app.database import Database
 from app.repositories._helpers import ensure_utc_timestamp
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +40,7 @@ class ServerColorRepository:
             ORDER BY created_at ASC
             """
         )
+        LOGGER.debug("Fetched all server colors: %d records", len(rows))
         return [self._from_row(row) for row in rows]
 
     async def get_color(self, guild_id: int) -> ServerColor | None:
@@ -50,6 +54,7 @@ class ServerColorRepository:
         )
         if row is None:
             return None
+        LOGGER.debug("Fetched color for guild_id=%d: %s", guild_id, row)
         return self._from_row(row)
 
     async def save_color(self, guild_id: int, color_value: int) -> ServerColor:
@@ -65,6 +70,7 @@ class ServerColorRepository:
             color_value,
         )
         assert row is not None
+        LOGGER.debug("Saved color for guild_id=%d: %s", guild_id, row)
         return self._from_row(row)
 
     @staticmethod

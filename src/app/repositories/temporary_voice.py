@@ -3,9 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, Sequence
+import logging
 
 from app.database import Database
 from app.repositories._helpers import ensure_utc_timestamp
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,19 +30,29 @@ class TemporaryVoiceChannel:
 
 
 class TemporaryVoiceCategoryStore(Protocol):
-    async def upsert_category(self, guild_id: int, category_id: int, updated_by: int) -> TemporaryVoiceCategory: ...
+    async def upsert_category(
+        self, guild_id: int, category_id: int, updated_by: int
+    ) -> TemporaryVoiceCategory: ...
 
     async def get_category(self, guild_id: int) -> TemporaryVoiceCategory | None: ...
 
 
 class TemporaryVoiceChannelStore(Protocol):
-    async def create_record(self, guild_id: int, owner_user_id: int, category_id: int) -> TemporaryVoiceChannel: ...
+    async def create_record(
+        self, guild_id: int, owner_user_id: int, category_id: int
+    ) -> TemporaryVoiceChannel: ...
 
-    async def update_channel_id(self, guild_id: int, owner_user_id: int, channel_id: int) -> TemporaryVoiceChannel: ...
+    async def update_channel_id(
+        self, guild_id: int, owner_user_id: int, channel_id: int
+    ) -> TemporaryVoiceChannel: ...
 
-    async def get_by_owner(self, guild_id: int, owner_user_id: int) -> TemporaryVoiceChannel | None: ...
+    async def get_by_owner(
+        self, guild_id: int, owner_user_id: int
+    ) -> TemporaryVoiceChannel | None: ...
 
-    async def get_by_channel(self, guild_id: int, channel_id: int) -> TemporaryVoiceChannel | None: ...
+    async def get_by_channel(
+        self, guild_id: int, channel_id: int
+    ) -> TemporaryVoiceChannel | None: ...
 
     async def delete_record(self, guild_id: int, owner_user_id: int) -> None: ...
 
@@ -58,7 +71,9 @@ class TemporaryVoiceCategoryRepository:
     def __init__(self, database: Database) -> None:
         self._database = database
 
-    async def upsert_category(self, guild_id: int, category_id: int, updated_by: int) -> TemporaryVoiceCategory:
+    async def upsert_category(
+        self, guild_id: int, category_id: int, updated_by: int
+    ) -> TemporaryVoiceCategory:
         query = """
         INSERT INTO temporary_vc_categories (guild_id, category_id, updated_by)
         VALUES (?, ?, ?)
@@ -68,6 +83,7 @@ class TemporaryVoiceCategoryRepository:
         """
         row = await self._database.fetchrow(query, guild_id, category_id, updated_by)
         assert row is not None
+        LOGGER.debug("Upserted temporary voice category: %s", row)
         return self._category_from_row(row)
 
     async def get_category(self, guild_id: int) -> TemporaryVoiceCategory | None:
@@ -79,10 +95,14 @@ class TemporaryVoiceCategoryRepository:
         row = await self._database.fetchrow(query, guild_id)
         if row is None:
             return None
+        LOGGER.debug("Fetched temporary voice category: %s", row)
         return self._category_from_row(row)
 
     async def delete_category(self, guild_id: int) -> None:
-        await self._database.execute("DELETE FROM temporary_vc_categories WHERE guild_id = ?", guild_id)
+        LOGGER.debug("Deleting temporary voice category for guild_id=%d", guild_id)
+        await self._database.execute(
+            "DELETE FROM temporary_vc_categories WHERE guild_id = ?", guild_id
+        )
 
     @staticmethod
     def _category_from_row(row) -> TemporaryVoiceCategory:
@@ -98,7 +118,9 @@ class TemporaryVoiceChannelRepository:
     def __init__(self, database: Database) -> None:
         self._database = database
 
-    async def create_record(self, guild_id: int, owner_user_id: int, category_id: int) -> TemporaryVoiceChannel:
+    async def create_record(
+        self, guild_id: int, owner_user_id: int, category_id: int
+    ) -> TemporaryVoiceChannel:
         query = """
         INSERT INTO temporary_voice_channels (guild_id, owner_user_id, category_id)
         VALUES (?, ?, ?)
@@ -106,9 +128,12 @@ class TemporaryVoiceChannelRepository:
         """
         row = await self._database.fetchrow(query, guild_id, owner_user_id, category_id)
         assert row is not None
+        LOGGER.debug("Created temporary voice channel record: %s", row)
         return self._channel_from_row(row)
 
-    async def update_channel_id(self, guild_id: int, owner_user_id: int, channel_id: int) -> TemporaryVoiceChannel:
+    async def update_channel_id(
+        self, guild_id: int, owner_user_id: int, channel_id: int
+    ) -> TemporaryVoiceChannel:
         query = """
         UPDATE temporary_voice_channels
         SET channel_id = ?, last_seen_at = CURRENT_TIMESTAMP
@@ -118,9 +143,12 @@ class TemporaryVoiceChannelRepository:
         row = await self._database.fetchrow(query, channel_id, guild_id, owner_user_id)
         if row is None:
             raise ValueError("temporary voice channel record not found for update")
+        LOGGER.debug("Updated temporary voice channel record: %s", row)
         return self._channel_from_row(row)
 
-    async def get_by_owner(self, guild_id: int, owner_user_id: int) -> TemporaryVoiceChannel | None:
+    async def get_by_owner(
+        self, guild_id: int, owner_user_id: int
+    ) -> TemporaryVoiceChannel | None:
         query = """
         SELECT guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at
         FROM temporary_voice_channels
@@ -129,9 +157,12 @@ class TemporaryVoiceChannelRepository:
         row = await self._database.fetchrow(query, guild_id, owner_user_id)
         if row is None:
             return None
+        LOGGER.debug("Fetched temporary voice channel record by owner: %s", row)
         return self._channel_from_row(row)
 
-    async def get_by_channel(self, guild_id: int, channel_id: int) -> TemporaryVoiceChannel | None:
+    async def get_by_channel(
+        self, guild_id: int, channel_id: int
+    ) -> TemporaryVoiceChannel | None:
         query = """
         SELECT guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at
         FROM temporary_voice_channels
@@ -140,6 +171,7 @@ class TemporaryVoiceChannelRepository:
         row = await self._database.fetchrow(query, guild_id, channel_id)
         if row is None:
             return None
+        LOGGER.debug("Fetched temporary voice channel record by channel: %s", row)
         return self._channel_from_row(row)
 
     async def delete_record(self, guild_id: int, owner_user_id: int) -> None:
@@ -148,10 +180,20 @@ class TemporaryVoiceChannelRepository:
             guild_id,
             owner_user_id,
         )
+        LOGGER.debug(
+            "Deleted temporary voice channel record for guild_id=%d, owner_user_id=%d",
+            guild_id,
+            owner_user_id,
+        )
 
     async def delete_by_channel(self, guild_id: int, channel_id: int) -> None:
         await self._database.execute(
             "DELETE FROM temporary_voice_channels WHERE guild_id = ? AND channel_id = ?",
+            guild_id,
+            channel_id,
+        )
+        LOGGER.debug(
+            "Deleted temporary voice channel record for guild_id=%d, channel_id=%d",
             guild_id,
             channel_id,
         )
@@ -163,6 +205,11 @@ class TemporaryVoiceChannelRepository:
         WHERE guild_id = ?
         """
         rows = await self._database.fetch(query, guild_id)
+        LOGGER.debug(
+            "Listed temporary voice channel records for guild_id=%d: %d records",
+            guild_id,
+            len(rows),
+        )
         return [self._channel_from_row(row) for row in rows]
 
     async def list_all(self) -> Sequence[TemporaryVoiceChannel]:
@@ -171,14 +218,25 @@ class TemporaryVoiceChannelRepository:
         FROM temporary_voice_channels
         """
         rows = await self._database.fetch(query)
+        LOGGER.debug(
+            "Listed all temporary voice channel records: %d records", len(rows)
+        )
         return [self._channel_from_row(row) for row in rows]
 
     async def purge_guild(self, guild_id: int) -> None:
-        await self._database.execute("DELETE FROM temporary_voice_channels WHERE guild_id = ?", guild_id)
+        await self._database.execute(
+            "DELETE FROM temporary_voice_channels WHERE guild_id = ?", guild_id
+        )
+        LOGGER.debug("Purged temporary voice channel records for guild_id=%d", guild_id)
 
     async def touch_last_seen(self, guild_id: int, owner_user_id: int) -> None:
         await self._database.execute(
             "UPDATE temporary_voice_channels SET last_seen_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND owner_user_id = ?",
+            guild_id,
+            owner_user_id,
+        )
+        LOGGER.debug(
+            "Updated last_seen_at for guild_id=%d, owner_user_id=%d",
             guild_id,
             owner_user_id,
         )
