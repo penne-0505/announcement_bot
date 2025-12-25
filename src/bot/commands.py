@@ -31,7 +31,9 @@ async def register_commands(
 
     tree = client.tree
 
-    @tree.command(name="osi", description="指定したチャンネルにメッセージを送信します。")
+    @tree.command(
+        name="osi", description="指定したチャンネルにメッセージを送信します。"
+    )
     async def command_osi(
         interaction: discord.Interaction,
     ) -> None:  # pragma: no cover - Discord 実行時にテスト
@@ -41,7 +43,6 @@ async def register_commands(
         await interaction.followup.send(
             "📨 下のボタンからメッセージ送信モーダルを開けます。",
             view=view,
-            ephemeral=True,
         )
 
     @tree.command(
@@ -83,7 +84,9 @@ async def register_commands(
         description="一時ボイスチャンネルを管理します。",
     )
 
-    @temporary_vc_group.command(name="category", description="一時VC用カテゴリを登録します。")
+    @temporary_vc_group.command(
+        name="category", description="一時VC用カテゴリを登録します。"
+    )
     @discord.app_commands.describe(category="一時VCの作成先にするカテゴリ")
     @discord.app_commands.default_permissions(manage_channels=True)
     @discord.app_commands.guild_only()
@@ -93,11 +96,15 @@ async def register_commands(
     ) -> None:  # pragma: no cover - Discord 実行時
         guild = interaction.guild
         if guild is None:
-            await interaction.response.send_message("サーバー内で実行してください。", ephemeral=True)
+            await interaction.response.send_message(
+                "サーバー内で実行してください。", ephemeral=True
+            )
             return
 
         await interaction.response.defer(ephemeral=True)
-        result = await temporary_voice_service.configure_category(guild, category, interaction.user.id)
+        result = await temporary_voice_service.configure_category(
+            guild, category, interaction.user.id
+        )
         deleted_count = len(result.deleted_channel_ids)
         missing_count = len(result.missing_channel_ids)
         LOGGER.info(
@@ -116,12 +123,18 @@ async def register_commands(
             ephemeral=True,
         )
 
-    @temporary_vc_group.command(name="create", description="自分専用の一時VCを作成します。")
+    @temporary_vc_group.command(
+        name="create", description="自分専用の一時VCを作成します。"
+    )
     @discord.app_commands.guild_only()
-    async def command_temporary_vc_create(interaction: discord.Interaction) -> None:  # pragma: no cover
+    async def command_temporary_vc_create(
+        interaction: discord.Interaction,
+    ) -> None:  # pragma: no cover
         guild = interaction.guild
         if guild is None:
-            await interaction.response.send_message("サーバー内で実行してください。", ephemeral=True)
+            await interaction.response.send_message(
+                "サーバー内で実行してください。", ephemeral=True
+            )
             return
 
         member = cast(discord.Member, interaction.user)
@@ -135,7 +148,9 @@ async def register_commands(
             )
             return
         except TemporaryVoiceChannelExistsError as exc:
-            jump = f"<#{exc.record.channel_id}>" if exc.record.channel_id else "登録済み"
+            jump = (
+                f"<#{exc.record.channel_id}>" if exc.record.channel_id else "登録済み"
+            )
             await interaction.response.send_message(
                 f"ℹ️ 既に管理対象の一時VCがあります: {jump}",
                 ephemeral=True,
@@ -153,12 +168,18 @@ async def register_commands(
             ephemeral=True,
         )
 
-    @temporary_vc_group.command(name="reset", description="自分の一時VCを手動削除します。")
+    @temporary_vc_group.command(
+        name="reset", description="自分の一時VCを手動削除します。"
+    )
     @discord.app_commands.guild_only()
-    async def command_temporary_vc_reset(interaction: discord.Interaction) -> None:  # pragma: no cover
+    async def command_temporary_vc_reset(
+        interaction: discord.Interaction,
+    ) -> None:  # pragma: no cover
         guild = interaction.guild
         if guild is None:
-            await interaction.response.send_message("サーバー内で実行してください。", ephemeral=True)
+            await interaction.response.send_message(
+                "サーバー内で実行してください。", ephemeral=True
+            )
             return
 
         member = cast(discord.Member, interaction.user)
@@ -172,7 +193,9 @@ async def register_commands(
             )
             return
 
-        await interaction.response.send_message("🗑️ 一時VCを削除しました。", ephemeral=True)
+        await interaction.response.send_message(
+            "🗑️ 一時VCを削除しました。", ephemeral=True
+        )
 
     tree.add_command(temporary_vc_group)
 

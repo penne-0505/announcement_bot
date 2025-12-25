@@ -11,7 +11,9 @@ ROLE_ASSIGN_REASON = "Nickname guard auto assignment"
 NICKNAME_CHANGE_REASON = "Nickname sync from message content"
 
 
-async def enforce_nickname_and_role(message: discord.Message, rule: ChannelNicknameRule) -> None:
+async def enforce_nickname_and_role(
+    message: discord.Message, rule: ChannelNicknameRule
+) -> None:
     """投稿本文をニックネームとして適用し、指定ロールを付与する。"""
 
     guild = message.guild
@@ -25,7 +27,9 @@ async def enforce_nickname_and_role(message: discord.Message, rule: ChannelNickn
     new_nickname = message.content.strip()
 
     if not new_nickname:
-        LOGGER.warning("空のメッセージのためニックネーム変更をスキップしました: user=%s", author.id)
+        LOGGER.warning(
+            "空のメッセージのためニックネーム変更をスキップしました: user=%s", author.id
+        )
     elif len(new_nickname) > 32:
         LOGGER.warning(
             "文字数超過のためニックネーム変更をスキップしました: user=%s length=%s",
@@ -78,7 +82,12 @@ async def enforce_nickname_and_role(message: discord.Message, rule: ChannelNickn
 
     try:
         await author.add_roles(role, reason=ROLE_ASSIGN_REASON)
-        LOGGER.info("ロールを付与しました: guild=%s role=%s user=%s", guild.id, role.id, author.id)
+        LOGGER.info(
+            "ロールを付与しました: guild=%s role=%s user=%s",
+            guild.id,
+            role.id,
+            author.id,
+        )
     except (discord.Forbidden, discord.HTTPException) as exc:
         LOGGER.warning(
             "ロール付与に失敗しました: guild=%s role=%s user=%s error=%s",

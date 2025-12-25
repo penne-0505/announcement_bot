@@ -37,7 +37,9 @@ class NicknameSyncSetupView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.executor_id:
-            await interaction.response.send_message(self.ERROR_UNAUTHORIZED, ephemeral=True)
+            await interaction.response.send_message(
+                self.ERROR_UNAUTHORIZED, ephemeral=True
+            )
             return False
         return True
 
@@ -73,12 +75,16 @@ class NicknameSyncSetupView(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
 
     @discord.ui.button(label="設定を保存", style=discord.ButtonStyle.primary, row=2)
-    async def submit_button(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+    async def submit_button(
+        self, interaction: discord.Interaction, _: discord.ui.Button
+    ) -> None:
         await self._handle_submit(interaction)
 
     async def _handle_submit(self, interaction: discord.Interaction) -> None:
         if self._selected_channel is None or self._selected_role is None:
-            await interaction.response.send_message(self.ERROR_SELECT_REQUIRED, ephemeral=True)
+            await interaction.response.send_message(
+                self.ERROR_SELECT_REQUIRED, ephemeral=True
+            )
             return
 
         await self.rule_store.upsert_rule(

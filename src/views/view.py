@@ -20,7 +20,9 @@ class _SendModalButton(discord.ui.Button):
     def __init__(self) -> None:
         super().__init__(label="メッセージ送信", style=discord.ButtonStyle.primary)
 
-    async def callback(self, interaction: discord.Interaction) -> None:  # pragma: no cover - UI コールバック
+    async def callback(
+        self, interaction: discord.Interaction
+    ) -> None:  # pragma: no cover - UI コールバック
         await interaction.response.send_modal(SendMessageModal())
 
 
@@ -38,11 +40,15 @@ class SendMessageModal(discord.ui.Modal, title="メッセージ送信"):
     )
 
     ERROR_INVALID_ID = "チャンネルIDは有効な整数である必要があります。"
-    ERROR_CHANNEL_NOT_FOUND = "チャンネルが見つかりません。Botがアクセスできるか確認してください。"
+    ERROR_CHANNEL_NOT_FOUND = (
+        "チャンネルが見つかりません。Botがアクセスできるか確認してください。"
+    )
     SUCCESS_MESSAGE = "<#{channel_id}> にメッセージを送信しました。"
     ERROR_GENERAL = "エラー: {error}"
 
-    async def on_submit(self, interaction: discord.Interaction) -> None:  # pragma: no cover - UI コールバック
+    async def on_submit(
+        self, interaction: discord.Interaction
+    ) -> None:  # pragma: no cover - UI コールバック
         await process_modal_submission(
             interaction,
             channel_id_value=self.channel_id.value,
@@ -61,7 +67,9 @@ async def process_modal_submission(
     try:
         channel_id_int = int(channel_id_value or "")
     except ValueError:
-        await interaction.response.send_message(SendMessageModal.ERROR_INVALID_ID, ephemeral=True)
+        await interaction.response.send_message(
+            SendMessageModal.ERROR_INVALID_ID, ephemeral=True
+        )
         return
 
     try:

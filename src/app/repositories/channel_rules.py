@@ -41,8 +41,7 @@ class ChannelNicknameRuleRepository:
     ) -> ChannelNicknameRule:
         now = datetime.now(timezone.utc).isoformat()
         row = await self._database.execute_one(
-            self._database.table("channel_nickname_rules")
-            .upsert(
+            self._database.table("channel_nickname_rules").upsert(
                 {
                     "guild_id": guild_id,
                     "channel_id": channel_id,
