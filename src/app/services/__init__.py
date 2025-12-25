@@ -6,13 +6,6 @@ from .temporary_voice import (
     TemporaryVoiceChannelNotFoundError,
     TemporaryVoiceChannelService,
 )
-from .color_assignment import (
-    ColorAssignmentService,
-    ColorGenerationConfig,
-    ColorGenerationError,
-    DEFAULT_DISTANCE_THRESHOLD,
-    DEFAULT_MAX_ATTEMPTS,
-)
 
 __all__ = [
     "CategoryNotConfiguredError",
@@ -21,9 +14,4 @@ __all__ = [
     "TemporaryVoiceChannelExistsError",
     "TemporaryVoiceChannelNotFoundError",
     "TemporaryVoiceChannelService",
-    "ColorAssignmentService",
-    "ColorGenerationConfig",
-    "ColorGenerationError",
-    "DEFAULT_DISTANCE_THRESHOLD",
-    "DEFAULT_MAX_ATTEMPTS",
 ]

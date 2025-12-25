@@ -5,7 +5,7 @@ import logging
 import discord
 
 from app.repositories import ChannelNicknameRuleStore
-from app.services import ColorAssignmentService, TemporaryVoiceChannelService
+from app.services import TemporaryVoiceChannelService
 from bot.handlers import enforce_nickname_and_role
 
 LOGGER = logging.getLogger(__name__)
@@ -20,13 +20,11 @@ class BotClient(discord.Client):
         intents: discord.Intents | None = None,
         rule_store: ChannelNicknameRuleStore,
         temporary_voice_service: TemporaryVoiceChannelService,
-        color_assignment_service: ColorAssignmentService | None = None,
     ) -> None:
         super().__init__(intents=intents or discord.Intents.all())
         self.tree = discord.app_commands.CommandTree(self)
         self.rule_store = rule_store
         self.temporary_voice_service = temporary_voice_service
-        self.color_assignment_service = color_assignment_service
 
     async def on_ready(self) -> None:
         if self.user is None:
@@ -36,12 +34,6 @@ class BotClient(discord.Client):
         LOGGER.info("ログイン完了: %s (ID: %s)", self.user, self.user.id)
         await self.tree.sync()
         LOGGER.info("アプリケーションコマンドの同期が完了しました。")
-        if self.color_assignment_service is not None:
-            try:
-                await self.color_assignment_service.assign_colors_to_new_guilds(self.guilds)
-                LOGGER.info("Guild カラーの割り当てを完了しました。")
-            except Exception:
-                LOGGER.exception("Guild カラー割り当て処理でエラーが発生しました。")
         await self.temporary_voice_service.cleanup_orphaned_channels(self.guilds)
         LOGGER.info("一時VCレコードの同期を完了しました。")
         LOGGER.info("準備完了。")
@@ -73,7 +65,9 @@ class BotClient(discord.Client):
         before_channel = before.channel if before is not None else None
         after_channel = after.channel if after is not None else None
         try:
-            await self.temporary_voice_service.handle_voice_state_update(member, before_channel, after_channel)
+            await self.temporary_voice_service.handle_voice_state_update(
+                member, before_channel, after_channel
+            )
         except Exception:  # pragma: no cover - 想定外の例外通知
             LOGGER.exception("一時VCの VoiceState 処理でエラーが発生しました。")
 

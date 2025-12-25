@@ -120,12 +120,6 @@ class Database:
             );
             """,
             """
-            CREATE TABLE IF NOT EXISTS server_colors (
-                guild_id BIGINT PRIMARY KEY,
-                color_value BIGINT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-            """,
         ]
 
         pool = await self._require_pool()

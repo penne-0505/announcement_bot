@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
@@ -79,16 +80,12 @@ def load_config(env_file: str | Path | None = None) -> AppConfig:
 
     token = _prepare_client_token(raw_token=os.getenv("DISCORD_BOT_TOKEN"))
     database_dsn = _prepare_database_url(raw_url=os.getenv("DATABASE_URL"))
-    force_color_regeneration = _prepare_force_color_regeneration(
-        raw_flag=os.getenv("FORCE_REGENERATE_COLORS")
-    )
 
     LOGGER.info("設定の読み込みが完了しました。")
 
     return AppConfig(
         discord=DiscordSettings(token=token),
         database=DatabaseSettings(dsn=database_dsn),
-        feature_flags=FeatureFlags(force_color_regeneration=force_color_regeneration),
     )
 
 
