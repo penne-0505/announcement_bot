@@ -119,7 +119,6 @@ class Database:
                 PRIMARY KEY (guild_id, owner_user_id)
             );
             """,
-            """
         ]
 
         pool = await self._require_pool()
