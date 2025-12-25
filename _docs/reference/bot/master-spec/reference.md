@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-12-24"
+updated: "2025-12-25"
 related_plan:
   - "docs/plan/bot/messaging-modal-port/plan.md"
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
@@ -28,8 +28,8 @@ references:
 
 | モジュール                                | 役割                                                                                                                                                                 |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/config.py`                       | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `DATABASE_URL` を読み込み、`AppConfig` を返す。                                                                           |
-| `src/app/database.py`                     | asyncpg プールを管理し、`channel_nickname_rules` / `temporary_vc_categories` / `temporary_voice_channels` を `CREATE TABLE IF NOT EXISTS` で自動作成する。           |
+| `src/app/config.py`                       | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `SUPABASE_URL` / `SUPABASE_KEY` を読み込み、`AppConfig` を返す。                                                          |
+| `src/app/database.py`                     | Supabase Python SDK で PostgREST API に接続し、各テーブルへの CRUD を提供する。                                                                                    |
 | `src/app/container.py`                    | `Database` + 各 Repository を初期化し、`BotClient` とコマンド登録を `TemporaryVoiceChannelService` と合わせて返す。                                                  |
 | `src/app/runtime.py` / `src/main.py`      | ログ初期化の上で `build_discord_app` → `DiscordApplication.run()` を実行する CLI エントリポイント。                                                                  |
 | `src/bot/client.py`                       | `discord.Client` 拡張。`on_ready` で `tree.sync()` + 一時 VC レコード同期、`on_message` で監視チャンネルハンドラ、`on_voice_state_update` で一時 VC 自動削除を行う。 |
@@ -43,7 +43,7 @@ references:
 ## 実行環境と依存
 
 - Python 3.12 系 (`pyproject.toml`)。
-- 主要ライブラリ: `discord-py>=2.6.4`, `python-dotenv>=1.1.0`, `asyncpg>=0.29.0`, `pytest`。
+- 主要ライブラリ: `discord-py>=2.6.4`, `python-dotenv>=1.1.0`, `supabase>=2.0.0`, `pytest`。
 - テストランナー設定: ルートの `conftest.py` で最小イベントループハンドラを提供し、`pytest.mark.asyncio` テストを外部プラグイ
   ンなしで実行できる。
 - CLI 起動方法:
@@ -54,14 +54,15 @@ references:
 
 | 変数                | 必須 | 説明                                                                                                                                             |
 | ------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DISCORD_BOT_TOKEN` | ✅   | Discord Bot のトークン。未設定時は `ValueError` を投げ、runtime で例外ログを出して終了 (`src/app/config.py:50-78`, `src/app/runtime.py:12-27`)。 |
-| `DATABASE_URL`      | ✅   | Railway Postgres 等の接続文字列。未設定時は `ValueError` (`src/app/config.py:58-79`)。                                                           |
+| `DISCORD_BOT_TOKEN` | ✅   | Discord Bot のトークン。未設定時は `ValueError` を投げ、runtime で例外ログを出して終了 (`src/app/config.py:50-88`, `src/app/runtime.py:12-27`)。 |
+| `SUPABASE_URL`      | ✅   | Supabase プロジェクト URL。未設定時は `ValueError` (`src/app/config.py:58-79`)。                                                               |
+| `SUPABASE_KEY`      | ✅   | Supabase API Key（サーバー用途は Service Role Key を推奨）。未設定時は `ValueError` (`src/app/config.py:76-85`)。                               |
 
 - `.env.example` に両変数を記載済み。`load_config()` は `dotenv` による `.env` 読み込み → 環境変数優先の挙動。
 
 ## データモデル
 
-`channel_nickname_rules`（`src/app/database.py:64-94`）
+`channel_nickname_rules`（Supabase 側でテーブル作成済みであることが前提）
 
 <<<<<<< HEAD
 | カラム | 型 | 説明 |
@@ -173,5 +174,5 @@ references:
 
 ## 運用メモ
 
-- Railway では `DATABASE_URL` を環境変数で提供し、Postgres 停止時は Bot を再起動して再接続する（自動リトライは未実装）。
+- Railway では `SUPABASE_URL` / `SUPABASE_KEY` を環境変数で提供し、Supabase 側の障害時は Bot を再起動して再接続する（自動リトライは未実装）。
 - ログ監視で Forbidden/HTTPException を検知した場合は、権限・ロール階層・対象チャンネルのアクセス設定を確認する。

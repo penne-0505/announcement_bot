@@ -4,7 +4,7 @@ domain: "bot"
 status: "beta"
 version: "0.1.0"
 created: "2025-11-12"
-updated: "2025-11-23"
+updated: "2025-12-25"
 related_plan: "docs/plan/bot/channel-nickname-role-sync/plan.md"
 related_intents:
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
@@ -42,14 +42,14 @@ related_intents:
 | PK | `(guild_id, channel_id)` |
 
 ## `app.database.Database`
-- `connect()` で Supabase Postgres への `asyncpg` 接続プールを生成し、`CREATE TABLE IF NOT EXISTS channel_nickname_rules ...` を実行する。
-- `fetchrow(query, *args)` / `execute(query, *args)` を提供し、コネクションはコンテキストで自動解放。
-- `close()` でプールを破棄し、Bot シャットダウン時に呼び出される。
+- `connect()` で Supabase Python SDK の async client を生成する。テーブルは Supabase 側で作成済みであることが前提。
+- `table(name)` と `execute(...)` で PostgREST の CRUD を実行し、レスポンスの `data` を返す。
+- `close()` は Supabase client の参照を破棄し、SDK に明示的なクローズがある場合のみ実行する。
 
 ## `ChannelNicknameRuleRepository`
 - `upsert_rule(guild_id, channel_id, role_id, updated_by)` → `ChannelNicknameRule`
 - `get_rule_for_channel(guild_id, channel_id)` → Optional[`ChannelNicknameRule`]
-- `asyncpg.Record` を dataclass へ詰め替えて返却。
+- Supabase のレスポンス (dict) を dataclass へ詰め替えて返却。
 
 ## メッセージ処理
 1. `BotClient.on_message` が以下条件で `enforce_nickname_and_role` を呼ぶ:

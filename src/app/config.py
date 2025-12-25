@@ -20,9 +20,10 @@ class DiscordSettings:
 
 @dataclass(frozen=True, slots=True)
 class DatabaseSettings:
-    """PostgreSQL 接続先 DSN を保持する。"""
+    """Supabase 接続情報を保持する。"""
 
-    dsn: str
+    url: str
+    key: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,21 +57,27 @@ def _prepare_client_token(raw_token: str | None) -> str:
     return raw_token.strip()
 
 
-def _prepare_database_url(raw_url: str | None) -> str:
-    """`DATABASE_URL` を PostgreSQL DSN として検証する。"""
+def _prepare_supabase_url(raw_url: str | None) -> str:
+    """`SUPABASE_URL` を検証する。"""
 
     if raw_url is None or raw_url.strip() == "":
-        raise ValueError("DATABASE_URL is not set in environment variables.")
+        raise ValueError("SUPABASE_URL is not set in environment variables.")
 
     normalized = raw_url.strip()
     parsed = urlparse(normalized)
-    if parsed.scheme not in {"postgres", "postgresql"}:
-        raise ValueError(
-            "DATABASE_URL must be a Postgres URL (e.g. postgresql://user:pass@host:5432/db)"
-        )
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("SUPABASE_URL must be a valid HTTP(S) URL.")
     if not parsed.hostname:
-        raise ValueError("DATABASE_URL is invalid; host component is missing.")
+        raise ValueError("SUPABASE_URL is invalid; host component is missing.")
     return normalized
+
+
+def _prepare_supabase_key(raw_key: str | None) -> str:
+    """`SUPABASE_KEY` を検証する。"""
+
+    if raw_key is None or raw_key.strip() == "":
+        raise ValueError("SUPABASE_KEY is not set in environment variables.")
+    return raw_key.strip()
 
 
 def load_config(env_file: str | Path | None = None) -> AppConfig:
@@ -79,13 +86,14 @@ def load_config(env_file: str | Path | None = None) -> AppConfig:
     _load_env_file(env_file)
 
     token = _prepare_client_token(raw_token=os.getenv("DISCORD_BOT_TOKEN"))
-    database_dsn = _prepare_database_url(raw_url=os.getenv("DATABASE_URL"))
+    database_url = _prepare_supabase_url(raw_url=os.getenv("SUPABASE_URL"))
+    database_key = _prepare_supabase_key(raw_key=os.getenv("SUPABASE_KEY"))
 
     LOGGER.info("設定の読み込みが完了しました。")
 
     return AppConfig(
         discord=DiscordSettings(token=token),
-        database=DatabaseSettings(dsn=database_dsn),
+        database=DatabaseSettings(url=database_url, key=database_key),
     )
 
 

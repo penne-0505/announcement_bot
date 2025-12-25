@@ -2,134 +2,94 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Sequence
+from typing import Any
 
-import asyncpg
+from supabase import AsyncClient, create_async_client
 
 LOGGER = logging.getLogger(__name__)
 
 
 class Database:
-    """asyncpg ベースで PostgreSQL への永続化を管理する。"""
+    """Supabase Python SDK を使って PostgreSQL への永続化を管理する。"""
 
     def __init__(
         self,
-        dsn: str,
-        *,
-        min_size: int = 1,
-        max_size: int = 5,
-        timeout: float = 5.0,
+        url: str,
+        key: str,
     ) -> None:
-        self._dsn = dsn
-        self._min_size = min_size
-        self._max_size = max_size
-        self._timeout = timeout
-        self._pool: asyncpg.Pool | None = None
+        self._url = url
+        self._key = key
+        self._client: AsyncClient | None = None
         self._connect_lock = asyncio.Lock()
 
     async def connect(self) -> None:
-        """PostgreSQL への接続を初期化し、テーブルを作成する。"""
+        """Supabase への接続を初期化する。"""
 
-        if self._pool is not None:
+        if self._client is not None:
             return
 
         async with self._connect_lock:
-            if self._pool is not None:
+            if self._client is not None:
                 return
 
-            LOGGER.info("PostgreSQL (%s) への接続を開始します。", self._dsn)
-            self._pool = await asyncpg.create_pool(
-                dsn=self._dsn,
-                min_size=self._min_size,
-                max_size=self._max_size,
-                command_timeout=self._timeout,
-            )
-            await self._ensure_schema()
-            LOGGER.info("PostgreSQL テーブルの初期化が完了しました。")
+            LOGGER.info("Supabase (%s) への接続を開始します。", self._url)
+            self._client = await create_async_client(self._url, self._key)
+            LOGGER.info("Supabase クライアントの初期化が完了しました。")
 
     async def close(self) -> None:
         """接続をクローズする。"""
 
-        if self._pool is None:
+        if self._client is None:
             return
 
         async with self._connect_lock:
-            if self._pool is None:
+            if self._client is None:
                 return
 
-            await self._pool.close()
-            self._pool = None
-            LOGGER.info("PostgreSQL 接続をクローズしました。")
+            client = self._client
+            self._client = None
+            close_fn = getattr(client, "aclose", None) or getattr(client, "close", None)
+            if callable(close_fn):
+                result = close_fn()
+                if asyncio.iscoroutine(result):
+                    await result
+                LOGGER.info("Supabase 接続をクローズしました。")
+            else:
+                LOGGER.info(
+                    "Supabase クライアントは明示的な close を持たないため参照を破棄しました。"
+                )
 
-    async def fetchrow(self, query: str, *params: object) -> asyncpg.Record | None:
-        """1 行取得する。"""
+    async def execute(self, request) -> list[dict[str, Any]]:
+        """Supabase リクエストを実行し、データを返す。"""
 
-        pool = await self._require_pool()
-        async with pool.acquire() as connection:
-            return await connection.fetchrow(query, *params)
+        response = await request.execute()
+        error = getattr(response, "error", None)
+        if error is not None:
+            raise RuntimeError(f"Supabase query failed: {error}")
+        data = getattr(response, "data", None)
+        if data is None:
+            return []
+        if isinstance(data, list):
+            return data
+        return [data]
 
-    async def fetch(self, query: str, *params: object) -> Sequence[asyncpg.Record]:
-        """複数行取得する。"""
+    async def execute_one(self, request) -> dict[str, Any] | None:
+        """Supabase リクエストを実行し、1件だけ返す。"""
 
-        pool = await self._require_pool()
-        async with pool.acquire() as connection:
-            return await connection.fetch(query, *params)
+        data = await self.execute(request)
+        if not data:
+            return None
+        return data[0]
 
-    async def execute(self, query: str, *params: object) -> int:
-        """書き込み系クエリを実行する。"""
+    def table(self, name: str):
+        """テーブルアクセス用のクエリビルダーを返す。"""
 
-        pool = await self._require_pool()
-        async with pool.acquire() as connection:
-            result = await connection.execute(query, *params)
-            try:
-                return int(result.split()[-1])
-            except (ValueError, IndexError):
-                return 0
+        return self._require_client().table(name)
 
-    async def _ensure_schema(self) -> None:
-        """初回起動時にテーブルを作成する。"""
-
-        schema_statements = [
-            """
-            CREATE TABLE IF NOT EXISTS channel_nickname_rules (
-                guild_id BIGINT NOT NULL,
-                channel_id BIGINT NOT NULL,
-                role_id BIGINT NOT NULL,
-                updated_by BIGINT NOT NULL,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (guild_id, channel_id)
-            );
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS temporary_vc_categories (
-                guild_id BIGINT PRIMARY KEY,
-                category_id BIGINT NOT NULL,
-                updated_by BIGINT NOT NULL,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS temporary_voice_channels (
-                guild_id BIGINT NOT NULL,
-                owner_user_id BIGINT NOT NULL,
-                channel_id BIGINT,
-                category_id BIGINT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                last_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (guild_id, owner_user_id)
-            );
-            """,
-        ]
-
-        pool = await self._require_pool()
-        async with pool.acquire() as connection:
-            for statement in schema_statements:
-                await connection.execute(statement)
-
-    async def _require_pool(self) -> asyncpg.Pool:
-        if self._pool is None:
+    def _require_client(self) -> AsyncClient:
+        if self._client is None:
             raise RuntimeError("Database is not initialized. call connect() first.")
-        return self._pool
+        return self._client
 
 
 __all__ = ["Database"]

@@ -4,7 +4,7 @@ domain: "bot"
 status: "draft"
 version: "0.1.0"
 created: "2025-11-14"
-updated: "2025-11-14"
+updated: "2025-12-25"
 related_issues: []
 related_prs: []
 references:
@@ -28,7 +28,7 @@ ttl_days: 30
 
 ## 背景整理
 - 既存 Bot は `/setup` と `/nickname_sync_setup` を中心にテキストチャンネルの操作とニックネーム監視を提供しており、`BotClient` は `discord.Intents.all()` を有効化済み (`src/bot/client.py:16-48`)。
-- `Database` / `ChannelNicknameRuleRepository` が `asyncpg` で永続化を担うため、追加ドメインでも Supabase Postgres を使った方が実装コストが低く、デプロイも単一のホスト + 外部DBで完結する。
+- `Database` / `ChannelNicknameRuleRepository` が Supabase SDK で永続化を担うため、追加ドメインでも Supabase Postgres を使った方が実装コストが低く、デプロイも単一のホスト + 外部DBで完結する。
 - `docs/reference/bot/master-spec/reference.md` ではデータアクセスの単一窓口を `app.repositories` にまとめる前提が示されている。TinyDB 前提の要件があるが、既存意図 (`docs/intent/bot/channel-nickname-role-sync/intent.md`) でも「後続機能で必要時に導入」と記載されており、今回も Postgres で代替して整合性を保つ。
 
 ## 現状実装との対応づけ

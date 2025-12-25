@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.1.0"
 created: "2025-11-12"
-updated: "2025-11-23"
+updated: "2025-12-25"
 related_intents:
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
 references:
@@ -17,7 +17,7 @@ references:
 
 ## 事前準備
 1. Bot ロールに **Manage Roles** と **Send Messages / Manage Messages** 権限を付与する。ロール階層は付与対象ロールより上に配置する。
-2. Supabase Postgres の接続文字列（例: `postgresql://user:pass@host:5432/db`）を `.env` の `DATABASE_URL` に設定し、`poetry install` で依存 (`discord-py`, `asyncpg`, `python-dotenv` など) を整える。`poetry run announcement-bot` を最初に起動すると `channel_nickname_rules` テーブルが自動作成される。
+2. Supabase の `SUPABASE_URL` / `SUPABASE_KEY` を `.env` に設定し、`poetry install` で依存 (`discord-py`, `supabase`, `python-dotenv` など) を整える。`channel_nickname_rules` テーブルは Supabase 側で事前作成しておく。
 3. 監視対象ギルドで Bot が Text チャンネル閲覧・投稿できることを確認する。
 
 ## `/nickname_sync_setup` の使い方

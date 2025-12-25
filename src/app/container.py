@@ -37,7 +37,7 @@ class DiscordApplication:
 async def build_discord_app(config: AppConfig) -> DiscordApplication:
     """Discord クライアントを初期化し、コマンド登録までを完了させる。"""
 
-    database = Database(config.database.dsn)
+    database = Database(config.database.url, config.database.key)
     await database.connect()
     rule_repository = ChannelNicknameRuleRepository(database)
     temporary_category_repo = TemporaryVoiceCategoryRepository(database)

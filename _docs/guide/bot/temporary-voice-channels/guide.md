@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.1.0"
 created: "2025-11-14"
-updated: "2025-11-14"
+updated: "2025-12-25"
 related_intents:
   - "docs/intent/bot/temporary-voice-channels/intent.md"
 references:
@@ -18,7 +18,7 @@ references:
 
 ## 事前準備
 1. Bot に **Manage Channels**, **Connect**, **View Channel**, **Move Members**, **Mute Members** を含むロール権限を与え、対象カテゴリにも同等の権限を付与します。
-2. `DISCORD_BOT_TOKEN` と Supabase Postgres 用の `DATABASE_URL`（例: `postgresql://user:pass@host:5432/db`）を `.env` に記述し、`pyproject.toml` に揃った依存関係（`discord.py`, `asyncpg`, `python-dotenv` など）を `poetry install` で準備します。
+2. `DISCORD_BOT_TOKEN` と Supabase 用の `SUPABASE_URL` / `SUPABASE_KEY` を `.env` に記述し、`pyproject.toml` に揃った依存関係（`discord.py`, `supabase`, `python-dotenv` など）を `poetry install` で準備します。
 3. Discord 開発者ポータルで Voice State Intent を有効化しておきます。Bot クライアントでは `discord.Intents.all()` を利用しているため、Portal 側で無効化されていると VoiceState イベントを受信できません。
 
 ## カテゴリ設定 (`/temporary_vc category`)

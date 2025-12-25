@@ -4,7 +4,7 @@ domain: "bot"
 status: "beta"
 version: "0.1.0"
 created: "2025-11-14"
-updated: "2025-11-14"
+updated: "2025-12-25"
 related_plan: "docs/plan/bot/temporary-voice-channels/plan.md"
 related_intents:
   - "docs/intent/bot/temporary-voice-channels/intent.md"
@@ -38,7 +38,7 @@ references:
 - 対象レコードが見つからない場合は「管理対象の一時VCは登録されていません。」と通知する。
 
 ## データモデル
-- Supabase Postgres に `asyncpg` で接続し、`Database._ensure_schema()` による `CREATE TABLE IF NOT EXISTS` でスキーマが自動準備される。
+- Supabase Python SDK を介して PostgREST API を利用し、テーブルは Supabase 側で事前に作成しておく。
 
 ### `temporary_vc_categories`
 | カラム | 型 | 説明 |
@@ -61,7 +61,7 @@ references:
 
 ## サービス挙動
 - `TemporaryVoiceChannelService.configure_category()` はカテゴリ更新後に `purge_guild()` でレコードをクリアし、新カテゴリを `upsert_category()` で保存する。
-- `create_temporary_channel()` は `temporary_voice_channels` に仮レコードを作成 → Discord API で VC 作成 → `update_channel_id()` で `channel_id` を記録する。API 失敗時はレコードを削除してロールバックする。作成直前に `get_by_owner()` で存在チェックし、`asyncpg.UniqueViolationError`（ユニーク制約違反）を `TemporaryVoiceChannelExistsError` に置き換えて制御されたエラー応答とするため、二重送信でも Discord API 側の汎用エラーにならない。
+- `create_temporary_channel()` は `temporary_voice_channels` に仮レコードを作成 → Discord API で VC 作成 → `update_channel_id()` で `channel_id` を記録する。API 失敗時はレコードを削除してロールバックする。作成直前に `get_by_owner()` で存在チェックし、作成失敗時も再取得で既存レコードがあれば `TemporaryVoiceChannelExistsError` を返すことで二重送信時のエラーを制御する。
 - `handle_voice_state_update(member, before_channel, after_channel)`:
   - `before_channel.members` が空になった場合に `channel.delete(reason="Temporary voice channel expired")` を実行し、レコードも削除。
   - `after_channel` が管理対象なら `touch_last_seen()` で滞在を更新。

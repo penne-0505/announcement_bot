@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Protocol
 import logging
 
@@ -39,15 +39,19 @@ class ChannelNicknameRuleRepository:
     async def upsert_rule(
         self, guild_id: int, channel_id: int, role_id: int, updated_by: int
     ) -> ChannelNicknameRule:
-        query = """
-        INSERT INTO channel_nickname_rules (guild_id, channel_id, role_id, updated_by)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (guild_id, channel_id)
-        DO UPDATE SET role_id = excluded.role_id, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP
-        RETURNING guild_id, channel_id, role_id, updated_by, updated_at
-        """
-        row = await self._database.fetchrow(
-            query, guild_id, channel_id, role_id, updated_by
+        now = datetime.now(timezone.utc).isoformat()
+        row = await self._database.execute_one(
+            self._database.table("channel_nickname_rules")
+            .upsert(
+                {
+                    "guild_id": guild_id,
+                    "channel_id": channel_id,
+                    "role_id": role_id,
+                    "updated_by": updated_by,
+                    "updated_at": now,
+                },
+                on_conflict="guild_id,channel_id",
+            )
         )
         assert row is not None  # RETURNING があるため None にならない
         LOGGER.debug("Upserted channel nickname rule: %s", row)
@@ -56,12 +60,12 @@ class ChannelNicknameRuleRepository:
     async def get_rule_for_channel(
         self, guild_id: int, channel_id: int
     ) -> ChannelNicknameRule | None:
-        query = """
-        SELECT guild_id, channel_id, role_id, updated_by, updated_at
-        FROM channel_nickname_rules
-        WHERE guild_id = $1 AND channel_id = $2
-        """
-        row = await self._database.fetchrow(query, guild_id, channel_id)
+        row = await self._database.execute_one(
+            self._database.table("channel_nickname_rules")
+            .select("guild_id, channel_id, role_id, updated_by, updated_at")
+            .eq("guild_id", guild_id)
+            .eq("channel_id", channel_id)
+        )
         if row is None:
             return None
         LOGGER.debug("Fetched channel nickname rule: %s", row)

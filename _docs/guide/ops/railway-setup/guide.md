@@ -4,7 +4,7 @@ domain: "ops"
 status: "active"
 version: "0.2.0"
 created: "2025-11-15"
-updated: "2025-12-24"
+updated: "2025-12-25"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
@@ -20,7 +20,7 @@ references:
 ## 概要
 - 本ガイドは `announcement_bot` を Railway にデプロイすることを前提に、リポジトリのクローンから Slash コマンドが利用可能になるまでのセットアップ手順を網羅します。
 - `/setup`・`/nickname_sync_setup`・`/temporary_vc` すべてを同一プロセスで運用する構成を想定しています。
-- インフラ構成は Railway 上の Python 12.x サービス + Supabase Postgres を利用し、マイグレーションは起動時の `Database._ensure_schema()` により自動作成されます。
+- インフラ構成は Railway 上の Python 12.x サービス + Supabase Postgres を利用し、テーブルは Supabase の SQL Editor で事前作成します。
 
 ## 前提条件
 ### アカウント / 権限
@@ -33,7 +33,7 @@ references:
 - Python 3.12 系（`pyenv` や `asdf` などでインストール済みであること）。
 - Poetry 1.8 系（例: `pipx install "poetry==1.8.3"`）。
 - Railway CLI（`curl -sSL https://railway.app/install.sh | sh` で導入し、`railway login` 済み）。
-- Discord Bot トークン (`DISCORD_BOT_TOKEN`) と Supabase Postgres の接続情報（後段で `DATABASE_URL` に設定）。
+- Discord Bot トークン (`DISCORD_BOT_TOKEN`) と Supabase の接続情報（後段で `SUPABASE_URL` / `SUPABASE_KEY` に設定）。
 
 ## リポジトリクローン〜ローカル検証
 1. **クローン**
@@ -49,9 +49,9 @@ references:
    ```bash
    cp .env.example .env
    ```
-   - `DISCORD_BOT_TOKEN=` に Bot トークン、`DATABASE_URL=` に Supabase Postgres の接続文字列を設定。例: `postgresql://user:pass@db.xxx.supabase.co:5432/postgres`
-4. **テーブル自動作成の確認**  
-   - `poetry run announcement-bot` を一度起動し、ログに `PostgreSQL テーブルの初期化が完了しました。` が出力されることを確認。`channel_nickname_rules` ほか 3 テーブルが自動作成されます。
+   - `DISCORD_BOT_TOKEN=` に Bot トークン、`SUPABASE_URL=` と `SUPABASE_KEY=` に Supabase の値を設定。
+4. **テーブル作成の確認**  
+   - Supabase の SQL Editor で `channel_nickname_rules` / `temporary_vc_categories` / `temporary_voice_channels` が作成済みであることを確認。
 5. **テスト実行（任意だが推奨）**
    ```bash
    PYTHONPATH=src poetry run pytest
@@ -64,7 +64,7 @@ references:
    ```
    - 既存プロジェクトに接続する場合は `railway link` を利用。
 2. **Supabase プロジェクト作成**  
-   - Supabase の Project Settings → Database から `DATABASE_URL`（例: `postgresql://user:pass@host:port/db`）を取得する。
+   - Supabase の Project Settings → API から `SUPABASE_URL` / `SUPABASE_KEY` を取得する。
 3. **Railway サービス構成**  
    - `Services` に「Bot 本体」を追加し、ビルドパックは Railway の Python（Nixpacks）を利用する。
 
@@ -74,7 +74,8 @@ Railway ダッシュボードまたは CLI (`railway variables set KEY=value`) �
 | 変数 | 値の例 / 説明 |
 | --- | --- |
 | `DISCORD_BOT_TOKEN` | Discord Developer Portal で発行した Bot トークン。rotate 時は即座に更新。 |
-| `DATABASE_URL` | Supabase Postgres の接続文字列（`postgresql://...`）。 |
+| `SUPABASE_URL` | Supabase プロジェクト URL。 |
+| `SUPABASE_KEY` | Supabase API Key（サーバー用途は Service Role Key を推奨）。 |
 | `PYTHON_VERSION` | `3.12` を明示してビルド環境を固定。 |
 | `POETRY_VERSION` | `1.8.3` など。Nixpacks が Poetry をインストールする際のバージョン指定。 |
 | `PORT` | Discord Bot は HTTP サーバーを開かないため未使用だが、Railway で必須の場合はデフォルトのままで問題なし。 |
@@ -108,7 +109,7 @@ Railway の Service → Settings → Deploy → Start Command で上記を設定
 | 症状 | 想定原因 | 対処 |
 | --- | --- | --- |
 | Bot がすぐ終了し、ログに `Discord bot token is not set` | `DISCORD_BOT_TOKEN` 未設定 | Railway の Variables を確認し、設定後に再デプロイ。 |
-| `Database pool is not initialized` が出る | `DATABASE_URL` が無効 / Supabase 側の接続情報が無効 | Supabase の接続文字列を再取得して更新。 |
+| `Database is not initialized` が出る | `SUPABASE_URL` / `SUPABASE_KEY` が無効 | Supabase の接続情報を再取得して更新。 |
 | Slash コマンドが表示されない | Intents・権限不足、`tree.sync()` 未完了 | Discord Developer Portal で Intents を再確認し、Bot を再招待 or チャンネル権限を見直す。 |
 | `/temporary_vc` で Forbidden エラー | Bot ロールが Manage Channels を持たない or ロール階層が低い | 管理者権限または十分なロール階層を付与する。 |
 

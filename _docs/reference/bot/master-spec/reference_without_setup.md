@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-12-24"
+updated: "2025-12-25"
 related_plan:
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
 related_intents:
@@ -19,8 +19,8 @@ references:
 ## システム構成
 | モジュール | 役割 |
 | --- | --- |
-| `src/app/config.py` | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `DATABASE_URL` を読み込み `AppConfig` を生成。 |
-| `src/app/database.py` | Supabase Postgres へ `asyncpg` 接続を管理し、`channel_nickname_rules` テーブルを自動作成。 |
+| `src/app/config.py` | `.env`/環境変数から `DISCORD_BOT_TOKEN` と `SUPABASE_URL` / `SUPABASE_KEY` を読み込み `AppConfig` を生成。 |
+| `src/app/database.py` | Supabase Python SDK で PostgREST API に接続し、テーブル操作を提供する。 |
 | `src/app/container.py` | DB/リポジトリを初期化し、`BotClient` と Slash コマンド登録を完了させる。 |
 | `src/bot/client.py` | Discord クライアント拡張。`on_ready` で `tree.sync()`、`on_message` でニックネーム同期処理を呼び出す。 |
 | `src/bot/commands.py` | `/nickname_sync_setup` コマンドを登録し、View を返す。 |
@@ -29,14 +29,15 @@ references:
 
 ## 実行環境と依存
 - Python 3.12 / Poetry 管理。
-- 主要依存: `discord-py>=2.6.4`, `asyncpg`, `python-dotenv`。
+- 主要依存: `discord-py>=2.6.4`, `supabase`, `python-dotenv`。
 - 実行: `poetry run announcement-bot` または `poetry run python -m src.main`。
 
 ## 設定
 | 変数 | 必須 | 説明 |
 | --- | --- | --- |
 | `DISCORD_BOT_TOKEN` | ✅ | Discord Bot トークン。 |
-| `DATABASE_URL` | ✅ | Postgres 接続文字列 (例: `postgresql://user:pass@host:5432/db`)。Supabase の接続文字列を指定する。 |
+| `SUPABASE_URL` | ✅ | Supabase プロジェクト URL (例: `https://xxx.supabase.co`)。 |
+| `SUPABASE_KEY` | ✅ | Supabase API Key（サーバー用途は Service Role Key を推奨）。 |
 - `.env.example` に両方記載。`load_config()` が `.env` を読み込んだ上で値を検証する。
 
 ## データモデル

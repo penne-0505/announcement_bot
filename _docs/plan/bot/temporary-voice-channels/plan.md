@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.1.0"
 created: "2025-11-14"
-updated: "2025-11-14"
+updated: "2025-12-25"
 related_issues: []
 related_prs: []
 references:
@@ -32,7 +32,7 @@ requirements:
   - "Supabase Postgres と Discord API のみで完結し、追加インフラを不要にする。"
     - "ログで主要イベント（作成・削除・失敗）を INFO/WARN で追跡できる。"
 constraints:
-  - "既存 `asyncpg` ベースの `Database` を拡張し、外部 ORM/TinyDB は採用しない。"
+  - "既存 Supabase SDK ベースの `Database` を拡張し、外部 ORM/TinyDB は採用しない。"
   - "Slash コマンドは discord.py 2.6 系で提供される `app_commands` を利用する。"
   - "Bot には Voice State Intent を必須とし、Guild ごとの CategorySelect は Discord 標準コンポーネントに限定する。"
 api_changes:
@@ -42,7 +42,7 @@ data_models:
   - "`temporary_vc_categories(guild_id PK, category_id, updated_by, updated_at)`"
   - "`temporary_voice_channels(guild_id, owner_user_id, channel_id, category_id, created_at, last_seen_at, PRIMARY KEY(guild_id, owner_user_id))`"
 migrations:
-  - "`Database._ensure_schema` に上記2テーブルの `CREATE TABLE IF NOT EXISTS` を追加。`temporary_voice_channels.channel_id` には `NULL` を許容し、作成完了後に `UPDATE` で反映する。"
+  - "Supabase の SQL Editor で上記2テーブルを事前作成する。`temporary_voice_channels.channel_id` には `NULL` を許容し、作成完了後に `UPDATE` で反映する。"
 rollout_plan:
   - "Phase 1: ローカル/開発ギルドでカテゴリ設定→VC作成→削除シーケンスを検証。"
   - "Phase 2: ステージング環境（ローカル/任意ホスト）で複数ユーザー同時操作を試験し、DB 一意制約エラーを観察。"
@@ -93,7 +93,7 @@ owners:
 | `TemporaryVoiceChannelService` | Slash コマンド・VoiceState ハンドラから呼び出されるドメインロジック（権限設定、名前生成、整合性処理）。 |
 | `bot.commands` | `/temporary_vc category|create|reset` を登録し、ephemeral レスポンスで結果を通知。 |
 | `bot.client.BotClient` | `on_voice_state_update` を override し、対象 VC の空判定と削除を実行。 |
-| `app.database.Database` | スキーマ初期化に一時VCテーブルを追加し、既存 `asyncpg` 接続を共有。 |
+| `app.database.Database` | Supabase SDK を利用して CRUD を実行し、テーブルは Supabase 側で管理。 |
 
 ## Slash コマンド設計
 - `/temporary_vc category`
@@ -135,7 +135,7 @@ owners:
 | 1 ユーザー 1 件制限がバイパスされる（DB レース） | 重複VCが発生 | UNIQUE 制約 + エラーハンドリングで再試行時にも一意性を強制。 |
 
 ## 依存・前提
-- discord.py 2.6.x, asyncpg >=0.29.0, Python 3.12。
+- discord.py 2.6.x, supabase >=2.0.0, Python 3.12。
 - Bot ロールが対象カテゴリへチャンネル作成・削除できる権限を保持していること。
 - Intents: `Intents.voice_states` が True、Portal 側でも有効化済み。
 
