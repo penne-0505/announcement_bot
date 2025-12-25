@@ -31,11 +31,11 @@ async def register_commands(
 
     tree = client.tree
 
-    @tree.command(name="setup", description="メッセージ送信のセットアップを行います。")
-    async def command_setup(
+    @tree.command(name="osi", description="指定したチャンネルにメッセージを送信します。")
+    async def command_osi(
         interaction: discord.Interaction,
     ) -> None:  # pragma: no cover - Discord 実行時にテスト
-        LOGGER.info("/setup コマンドを実行したユーザー: %s", interaction.user)
+        LOGGER.info("/osi コマンドを実行したユーザー: %s", interaction.user)
         await interaction.response.defer(ephemeral=True)
         view = SendModalView()
         await interaction.followup.send(

@@ -2,7 +2,7 @@
 
 ## 0. System Metadata
 
-- **Current Max ID**: `Next ID No: 1` (※タスク追加時にインクリメント必須)
+- **Current Max ID**: `Next ID No: 2` (※タスク追加時にインクリメント必須)
 - **ID Source of Truth**: このファイルの `Next ID No` 行が、全プロジェクトにおける唯一の ID 発番元である。
 
 ## 1. Task Lifecycle (State Machine)
@@ -202,6 +202,21 @@ ID 生成およびタイトルのプレフィックスには以下のみを使�
 ---
 
 ## Backlog
+
+- **Title**: [Enhance] Rename /setup command to /osi
+- **ID**: bot-Enhance-1
+- **Priority**: P2
+- **Size**: S
+- **Area**: bot
+- **Dependencies**: []
+- **Goal**: `/setup` が `/osi` に置き換わり、関連ドキュメントも最新化されている。
+- **Steps**:
+  1. [ ] `src/bot/commands.py` の Slash コマンド名とログ文言を `/osi` に更新する
+  2. [ ] `/setup` を参照するテストを `/osi` に更新する
+  3. [ ] `_docs/` と `README.md` で `/setup` を参照している箇所を `/osi` に置換し、説明文を調整する
+  4. [ ] Bot の Slash コマンド一覧が `/osi` になっていることを確認する
+- **Description**: 利用者向けのコマンド名を `/setup` から `/osi` に統一する。
+- **Plan**: None
 
 ---
 

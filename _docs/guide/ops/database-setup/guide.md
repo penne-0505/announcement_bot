@@ -31,7 +31,7 @@ references:
 
 1. リポジトリで `poetry install` を実行し、`discord-py`, `supabase`, `python-dotenv` などの依存を取得する。
 2. Supabase でプロジェクトを作成し、Project Settings → API から `SUPABASE_URL` と `SUPABASE_KEY` を取得する。
-3. Supabase の SQL Editor で `_docs/guide/ops/database-setup/schema.sql` を実行し、テーブルを作成する。
+3. Supabase の SQL Editor で `supabase/schema.sql` を実行し、テーブルを作成する。
 4. `.env`（あるいはホストの環境変数）で `DISCORD_BOT_TOKEN` と `SUPABASE_URL` / `SUPABASE_KEY` を設定する。
 
 ## Supabase 接続設定
@@ -67,10 +67,10 @@ references:
 
 ## トラブルシューティング
 
-| 症状                            | 原因                                            | 対応                                                                                  |
-| ------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------- |
-| PostgREST エラー                | API キー誤り / RLS / ルール違反                 | Supabase の API Key と RLS 設定を確認し、Service Role Key の利用を検討する。         |
-| タイムアウト / 5xx              | Supabase 停止/メンテナンス                      | Supabase のステータスを確認し、復旧後に再起動。                                     |
+| 症状               | 原因                            | 対応                                                                         |
+| ------------------ | ------------------------------- | ---------------------------------------------------------------------------- |
+| PostgREST エラー   | API キー誤り / RLS / ルール違反 | Supabase の API Key と RLS 設定を確認し、Service Role Key の利用を検討する。 |
+| タイムアウト / 5xx | Supabase 停止/メンテナンス      | Supabase のステータスを確認し、復旧後に再起動。                              |
 
 ## 関連ドキュメント
 

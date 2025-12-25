@@ -4,7 +4,7 @@ domain: "bot"
 status: "beta"
 version: "0.1.0"
 created: "2025-11-09"
-updated: "2025-11-13"
+updated: "2025-12-25"
 related_plan: "docs/plan/bot/messaging-modal-port/plan.md"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
@@ -14,15 +14,15 @@ related_intents:
 | モジュール | 役割 |
 | --- | --- |
 | `src/app/config.py` | `.env` から `DISCORD_BOT_TOKEN` を読み込み `AppConfig` を返す |
-| `src/app/container.py` | `BotClient` を生成し `/setup` コマンドを登録して `DiscordApplication` を返す |
+| `src/app/container.py` | `BotClient` を生成し `/osi` コマンドを登録して `DiscordApplication` を返す |
 | `src/bot/client.py` | `discord.Client` 拡張。`CommandTree` を保持し `on_ready` で `tree.sync()` を実行 |
-| `src/bot/commands.py` | `/setup` Slash コマンドを登録し、View を含むフォローアップを送信 |
+| `src/bot/commands.py` | `/osi` Slash コマンドを登録し、View を含むフォローアップを送信 |
 | `src/views/view.py` | `SendModalView` と `SendMessageModal` を定義し、入力値検証を `process_modal_submission` に集約 |
 | `src/main.py` | `load_config` → `build_discord_app` → `DiscordApplication.run()` を結線するエントリポイント |
 
-## Slash コマンド `/setup`
-- `name`: `setup`
-- `description`: `メッセージ送信のセットアップを行います。`
+## Slash コマンド `/osi`
+- `name`: `osi`
+- `description`: `指定したチャンネルにメッセージを送信します。`
 - 応答フロー:
   1. `interaction.response.defer(ephemeral=True)` で応答ウィンドウを確保。
   2. `interaction.followup.send(..., view=SendModalView(), ephemeral=True)` で View を返す。

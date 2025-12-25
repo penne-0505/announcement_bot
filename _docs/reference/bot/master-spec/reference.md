@@ -13,6 +13,7 @@ related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
   - "docs/intent/bot/temporary-voice-channels/intent.md"
+  - "docs/intent/bot/osi-command-rename/intent.md"
 references:
   - "docs/guide/bot/messaging-modal-port/guide.md"
   - "docs/guide/bot/channel-nickname-role-sync/guide.md"
@@ -21,7 +22,7 @@ references:
 
 ## 目的
 
-- Clover 発表用 Discord サーバーで安全に告知文を投稿する `/setup` モーダル機能、本人確認チャンネルのニックネーム同期 + ロール自動付与機能、一時的なボイスチャンネル (`/temporary_vc`) を恒久運用する。
+- Clover 発表用 Discord サーバーで安全に告知文を投稿する `/osi` モーダル機能、本人確認チャンネルのニックネーム同期 + ロール自動付与機能、一時的なボイスチャンネル (`/temporary_vc`) を恒久運用する。
 - 本書は 2025-11-12 時点のマスター仕様を定義し、コード・ドキュメントの整合性確認の基準とする。
 
 ## システム構成
@@ -33,8 +34,8 @@ references:
 | `src/app/container.py`                    | `Database` + 各 Repository を初期化し、`BotClient` とコマンド登録を `TemporaryVoiceChannelService` と合わせて返す。                                                  |
 | `src/app/runtime.py` / `src/main.py`      | ログ初期化の上で `build_discord_app` → `DiscordApplication.run()` を実行する CLI エントリポイント。                                                                  |
 | `src/bot/client.py`                       | `discord.Client` 拡張。`on_ready` で `tree.sync()` + 一時 VC レコード同期、`on_message` で監視チャンネルハンドラ、`on_voice_state_update` で一時 VC 自動削除を行う。 |
-| `src/bot/commands.py`                     | Slash コマンド `/setup`, `/nickname_sync_setup`, `/temporary_vc` を登録。                                                                                            |
-| `src/views/view.py`                       | `/setup` フローで利用する `SendModalView` / `SendMessageModal` を提供。                                                                                              |
+| `src/bot/commands.py`                     | Slash コマンド `/osi`, `/nickname_sync_setup`, `/temporary_vc` を登録。                                                                                              |
+| `src/views/view.py`                       | `/osi` フローで利用する `SendModalView` / `SendMessageModal` を提供。                                                                                                 |
 | `src/views/nickname_sync_setup.py`        | `/nickname_sync_setup` から呼び出す `NicknameSyncSetupView`（ChannelSelect + RoleSelect + 保存ボタン）。                                                             |
 | `src/bot/handlers.py`                     | 監視対象チャンネルの投稿内容をニックネームとしてメンバーに適用し、ロールを付与する共通ロジック。                                                                     |
 | `src/app/repositories/temporary_voice.py` | 一時 VC カテゴリ/チャンネルの永続化を行う。                                                                                                                          |
@@ -101,11 +102,11 @@ references:
 
 | name                   | 目的                                                             | 権限                                        | 実装                         |
 | ---------------------- | ---------------------------------------------------------------- | ------------------------------------------- | ---------------------------- |
-| `/setup`               | モーダル経由で任意チャンネルへ告知メッセージを送信               | 既定 (DM 不可)                              | `src/bot/commands.py:22-33`  |
+| `/osi`                 | モーダル経由で任意チャンネルへ告知メッセージを送信               | 既定 (DM 不可)                              | `src/bot/commands.py:22-33`  |
 | `/nickname_sync_setup` | 監視チャンネル/ロールを GUI で選択し、ニックネーム同期設定を保存 | Manage Roles + Manage Messages (guild only) | `src/bot/commands.py:35-67`  |
 | `/temporary_vc`        | 一時 VC カテゴリ設定/作成/削除をサブコマンドで提供               | Manage Channels (`category` のみ)           | `src/bot/commands.py:70-155` |
 
-### `/setup`
+### `/osi`
 
 1. `interaction.response.defer(ephemeral=True)` で応答ウィンドウ確保。
 2. `SendModalView`（`src/views/view.py:12-34`）をフォローアップで返却。
@@ -133,7 +134,7 @@ references:
 
 | コンポーネント          | ファイル                                  | 要点                                                                                                               |
 | ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `SendModalView`         | `src/views/view.py:12-21`                 | `/setup` 経由でモーダルボタンを表示。                                                                              |
+| `SendModalView`         | `src/views/view.py:12-21`                 | `/osi` 経由でモーダルボタンを表示。                                                                                 |
 | `SendMessageModal`      | `src/views/view.py:36-108`                | チャンネル ID/本文の入力欄。バリデーションおよび `interaction.response.send_message(..., ephemeral=True)` を実行。 |
 | `NicknameSyncSetupView` | `src/views/nickname_sync_setup.py:16-105` | ChannelSelect + RoleSelect + 保存ボタン。executor 固定、成功時に DB へ永続化。                                     |
 
@@ -168,7 +169,7 @@ references:
 | テスト                                         | 対象                 | 概要                                                                                           |
 | ---------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------- |
 | `tests/views/test_send_message_modal.py`       | モーダルの入力検証   | ID 変換、キャッシュ済み/フェッチ経路での送信成功、各種エラー、非 Messageable 判定。            |
-| `tests/bot/test_commands.py`                   | Slash コマンド       | `/setup` の View 返却と `/nickname_sync_setup` の View パラメータ検証。                        |
+| `tests/bot/test_commands.py`                   | Slash コマンド       | `/osi` の View 返却と `/nickname_sync_setup` の View パラメータ検証。                          |
 | `tests/views/test_nickname_sync_setup_view.py` | View 単体            | 選択必須、成功時 upsert、操作権限の許可/拒否パターン。                                         |
 | `tests/bot/test_handlers.py`                   | ニックネーム同期処理 | 投稿本文からのニックネーム設定、32 文字バリデーション、ロール未設定/既存ロール時の分岐を確認。 |
 

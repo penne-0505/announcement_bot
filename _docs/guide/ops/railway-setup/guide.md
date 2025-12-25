@@ -19,7 +19,7 @@ references:
 
 ## 概要
 - 本ガイドは `announcement_bot` を Railway にデプロイすることを前提に、リポジトリのクローンから Slash コマンドが利用可能になるまでのセットアップ手順を網羅します。
-- `/setup`・`/nickname_sync_setup`・`/temporary_vc` すべてを同一プロセスで運用する構成を想定しています。
+- `/osi`・`/nickname_sync_setup`・`/temporary_vc` すべてを同一プロセスで運用する構成を想定しています。
 - インフラ構成は Railway 上の Python 12.x サービス + Supabase Postgres を利用し、テーブルは Supabase の SQL Editor で事前作成します。
 
 ## 前提条件
@@ -96,7 +96,7 @@ Railway の Service → Settings → Deploy → Start Command で上記を設定
    ```
    - `Discord クライアントの初期化が完了し、コマンドを登録しました。` ログが出たら Slash コマンド同期が完了しています。
 3. **Discord 上での動作確認**  
-   - `/setup` を実行し、モーダルが開けば Slash コマンドが同期済み。
+- `/osi` を実行し、モーダルが開けば Slash コマンドが同期済み。
    - `/temporary_vc category set` → `/temporary_vc create` を実行してボイスチャンネルが生成されることを確認。
    - ニックネーム同期を使う場合は `/nickname_sync_setup` で監視チャンネルとロールを登録し、該当チャンネルに投稿して display_name への書き換えとロール付与が行われるかを確認。
 

@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.1.0"
 created: "2025-11-09"
-updated: "2025-11-09"
+updated: "2025-12-25"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
 references:
@@ -12,7 +12,7 @@ references:
 ---
 
 ## 概要
-- `/setup` Slash コマンドからメッセージ送信用モーダルを開き、任意チャンネルへ告知文を投稿する機能。
+- `/osi` Slash コマンドからメッセージ送信用モーダルを開き、任意チャンネルへ告知文を投稿する機能。
 - 送信成功/失敗はすべて ephemeral メッセージで発報する。
 
 ## 事前準備
@@ -21,7 +21,7 @@ references:
 3. `poetry run announcement-bot` で起動し、ログに `準備完了` が出力されていることを確認する。
 
 ## 利用手順
-1. Discord サーバーで `/setup` を実行する。
+1. Discord サーバーで `/osi` を実行する。
 2. フォローアップメッセージの「メッセージ送信」ボタンを押す。
 3. モーダルに以下を入力し「送信」を押下する。
    - **チャンネルID**: 送信先の数値 ID。右クリック→IDをコピー で取得。
@@ -38,5 +38,5 @@ references:
 
 ## 運用 Tips
 - Slash コマンド実行者以外にはフォローアップ/エラー文は見えないため、権限付きアナウンス担当者のみを想定して運用できる。
-- 複数メッセージを連続で送る場合は `/setup` を再実行して新しい View を取得する。
-- Bot の稼働確認は `/setup` 実行で View が返るかどうかが最も手軽。
+- 複数メッセージを連続で送る場合は `/osi` を再実行して新しい View を取得する。
+- Bot の稼働確認は `/osi` 実行で View が返るかどうかが最も手軽。

@@ -94,17 +94,17 @@ class FakeTemporaryVoiceService:
 
 
 @pytest.mark.asyncio
-async def test_register_commands_registers_setup_and_sends_view() -> None:
+async def test_register_commands_registers_osi_and_sends_view() -> None:
     tree = FakeCommandTree()
     client = types.SimpleNamespace(tree=tree)
     rule_store = types.SimpleNamespace()
     voice_service = FakeTemporaryVoiceService()
 
     await register_commands(client, rule_store=rule_store, temporary_voice_service=voice_service)
-    assert "setup" in tree.registered
+    assert "osi" in tree.registered
 
     interaction = FakeInteraction()
-    await tree.registered["setup"]["callback"](interaction)
+    await tree.registered["osi"]["callback"](interaction)
 
     assert interaction.response.deferred_ephemeral is True
     assert interaction.followup.sent[0]["ephemeral"] is True
