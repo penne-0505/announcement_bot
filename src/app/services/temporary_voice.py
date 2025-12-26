@@ -166,16 +166,20 @@ class TemporaryVoiceChannelService:
 
     async def cleanup_orphaned_channels(self, guilds: Sequence[discord.Guild]) -> None:
         guild_map = {guild.id: guild for guild in guilds}
+        removed = 0
+        missing = 0
         for record in await self._channel_repo.list_all():
             guild = guild_map.get(record.guild_id)
             if guild is None:
                 LOGGER.warning("Bot が所属していないギルドのレコードを削除します: guild=%s", record.guild_id)
                 await self._channel_repo.delete_record(record.guild_id, record.owner_user_id)
+                removed += 1
                 continue
 
             if record.channel_id is None:
                 LOGGER.warning("channel_id 未設定の一時VCを削除します: guild=%s owner=%s", record.guild_id, record.owner_user_id)
                 await self._channel_repo.delete_record(record.guild_id, record.owner_user_id)
+                removed += 1
                 continue
 
             channel = guild.get_channel(record.channel_id)
@@ -186,6 +190,13 @@ class TemporaryVoiceChannelService:
                     record.channel_id,
                 )
                 await self._channel_repo.delete_record(record.guild_id, record.owner_user_id)
+                missing += 1
+        LOGGER.info(
+            "一時VCの整合性チェックが完了しました: guilds=%s removed=%s missing=%s",
+            len(guilds),
+            removed,
+            missing,
+        )
 
     async def handle_voice_state_update(
         self,
@@ -197,6 +208,13 @@ class TemporaryVoiceChannelService:
         if guild is None:
             return
 
+        LOGGER.debug(
+            "VoiceState を受信しました: guild=%s user=%s before=%s after=%s",
+            guild.id,
+            member.id,
+            getattr(before, "id", None),
+            getattr(after, "id", None),
+        )
         if before is not None:
             await self._cleanup_if_empty(guild, before)
 

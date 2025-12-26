@@ -4,7 +4,7 @@ domain: "bot"
 status: "active"
 version: "0.2.0"
 created: "2025-11-12"
-updated: "2025-12-25"
+updated: "2025-12-26"
 related_plan:
   - "docs/plan/bot/messaging-modal-port/plan.md"
   - "docs/plan/bot/channel-nickname-role-sync/plan.md"
@@ -58,6 +58,7 @@ references:
 | `DISCORD_BOT_TOKEN` | ✅   | Discord Bot のトークン。未設定時は `ValueError` を投げ、runtime で例外ログを出して終了 (`src/app/config.py:50-88`, `src/app/runtime.py:12-27`)。 |
 | `SUPABASE_URL`      | ✅   | Supabase プロジェクト URL。未設定時は `ValueError` (`src/app/config.py:58-79`)。                                                               |
 | `SUPABASE_KEY`      | ✅   | Supabase API Key（サーバー用途は Service Role Key を推奨）。未設定時は `ValueError` (`src/app/config.py:76-85`)。                               |
+| `LOG_LEVEL`         | 任意 | `INFO` / `WARNING` / `ERROR` など。未設定時は `INFO` で起動 (`src/app/runtime.py:33-54`)。                                                     |
 
 - `.env.example` に両変数を記載済み。`load_config()` は `dotenv` による `.env` 読み込み → 環境変数優先の挙動。
 
@@ -163,6 +164,7 @@ references:
 - DB 接続/テーブル作成に失敗すると `Database.connect()` 内で例外が送出され、上位で捕捉 → ログ (`src/app/runtime.py:18-27`)。
 - Slash コマンド／View／ハンドラはすべてエラーを `interaction.response.send_message(..., ephemeral=True)` で通知し、詳細は LOGGER(INFO/WARNING/ERROR) へ記録。
 - 一時 VC では Discord API 失敗時にレコードを削除してロールバックし、カテゴリが削除されていた場合は WARN ログで再設定を促す。
+- `logging.basicConfig` は `YYYY-MM-DD HH:MM:SS LEVEL [logger] message` 形式で統一し、ログの粒度は `LOG_LEVEL` で調整する。
 
 ## テストカバレッジ
 

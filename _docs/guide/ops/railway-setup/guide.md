@@ -4,7 +4,7 @@ domain: "ops"
 status: "active"
 version: "0.2.0"
 created: "2025-11-15"
-updated: "2025-12-25"
+updated: "2025-12-26"
 related_intents:
   - "docs/intent/bot/messaging-modal-port/intent.md"
   - "docs/intent/bot/channel-nickname-role-sync/intent.md"
@@ -78,6 +78,7 @@ Railway ダッシュボードまたは CLI (`railway variables set KEY=value`) �
 | `SUPABASE_KEY` | Supabase API Key（サーバー用途は Service Role Key を推奨）。 |
 | `PYTHON_VERSION` | `3.12` を明示してビルド環境を固定。 |
 | `POETRY_VERSION` | `1.8.3` など。Nixpacks が Poetry をインストールする際のバージョン指定。 |
+| `LOG_LEVEL` | `INFO` / `WARNING` / `ERROR` など。Bot のログレベルを上書きする場合に設定。 |
 | `PORT` | Discord Bot は HTTP サーバーを開かないため未使用だが、Railway で必須の場合はデフォルトのままで問題なし。 |
 
 **Start Command**: `poetry run announcement-bot`  
@@ -103,7 +104,8 @@ Railway の Service → Settings → Deploy → Start Command で上記を設定
 ## 運用・監視 Tips
 - **Bot 停止時の再起動**: Railway の `Auto Restart` を有効にしておくと例外終了時に自動で再起動されます。DB 側でメンテナンスが走った場合も自動復旧できます。
 - **Slash コマンド更新**: コマンド定義を変更した際は再デプロイ後に `discord.app_commands.CommandTree.sync()` が実行されるため、最大で数分待つだけで反映されます。
-- **ログレベル**: 標準の `logging.basicConfig(level=logging.INFO)` が設定されているため、Railway ダッシュボードで INFO/WARN/ERROR をフィルタすると運用しやすくなります。
+- **ログレベル**: `LOG_LEVEL` を設定しない場合は `INFO`。必要に応じて `LOG_LEVEL=WARNING` などで絞り込み可能です。
+- **ログフォーマット**: `YYYY-MM-DD HH:MM:SS LEVEL [logger] message` 形式で出力されるため、時系列と責務が追いやすくなります。
 
 ## トラブルシューティング
 | 症状 | 想定原因 | 対処 |

@@ -37,6 +37,12 @@ class NicknameSyncSetupView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.executor_id:
+            LOGGER.warning(
+                "ニックネーム同期設定Viewの操作が拒否されました: guild=%s executor=%s actor=%s",
+                self.guild_id,
+                self.executor_id,
+                interaction.user.id,
+            )
             await interaction.response.send_message(
                 self.ERROR_UNAUTHORIZED, ephemeral=True
             )
@@ -82,6 +88,13 @@ class NicknameSyncSetupView(discord.ui.View):
 
     async def _handle_submit(self, interaction: discord.Interaction) -> None:
         if self._selected_channel is None or self._selected_role is None:
+            LOGGER.warning(
+                "ニックネーム同期設定の保存で未選択がありました: guild=%s executor=%s channel_selected=%s role_selected=%s",
+                self.guild_id,
+                self.executor_id,
+                self._selected_channel is not None,
+                self._selected_role is not None,
+            )
             await interaction.response.send_message(
                 self.ERROR_SELECT_REQUIRED, ephemeral=True
             )

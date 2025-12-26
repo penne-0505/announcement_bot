@@ -67,6 +67,12 @@ async def process_modal_submission(
     try:
         channel_id_int = int(channel_id_value or "")
     except ValueError:
+        LOGGER.warning(
+            "モーダルのチャンネルIDが不正です: guild=%s user=%s value=%s",
+            interaction.guild_id,
+            interaction.user.id,
+            channel_id_value,
+        )
         await interaction.response.send_message(
             SendMessageModal.ERROR_INVALID_ID, ephemeral=True
         )
@@ -78,12 +84,25 @@ async def process_modal_submission(
             try:
                 channel = await interaction.client.fetch_channel(channel_id_int)
             except discord.NotFound:
+                LOGGER.warning(
+                    "モーダル送信先チャンネルが見つかりません: guild=%s user=%s channel=%s",
+                    interaction.guild_id,
+                    interaction.user.id,
+                    channel_id_int,
+                )
                 await interaction.response.send_message(
                     SendMessageModal.ERROR_CHANNEL_NOT_FOUND,
                     ephemeral=True,
                 )
                 return
             except discord.HTTPException as exc:
+                LOGGER.warning(
+                    "モーダル送信先チャンネル取得に失敗しました: guild=%s user=%s channel=%s error=%s",
+                    interaction.guild_id,
+                    interaction.user.id,
+                    channel_id_int,
+                    exc,
+                )
                 await interaction.response.send_message(
                     SendMessageModal.ERROR_GENERAL.format(error=str(exc)),
                     ephemeral=True,
@@ -91,16 +110,30 @@ async def process_modal_submission(
                 return
 
         if not isinstance(channel, Messageable):
+            LOGGER.warning(
+                "モーダル送信先がMessageableではありません: guild=%s user=%s channel=%s",
+                interaction.guild_id,
+                interaction.user.id,
+                channel_id_int,
+            )
             await interaction.response.send_message(
                 SendMessageModal.ERROR_CHANNEL_NOT_FOUND,
                 ephemeral=True,
             )
             return
 
-        await channel.send(message_value or "")
+        message_body = message_value or ""
+        await channel.send(message_body)
         await interaction.response.send_message(
             SendMessageModal.SUCCESS_MESSAGE.format(channel_id=channel.id),
             ephemeral=True,
+        )
+        LOGGER.info(
+            "モーダル送信が完了しました: guild=%s user=%s channel=%s length=%s",
+            interaction.guild_id,
+            interaction.user.id,
+            channel.id,
+            len(message_body),
         )
     except Exception as exc:  # pragma: no cover - 想定外エラーの通知
         LOGGER.exception("モーダル送信処理中にエラーが発生しました。")

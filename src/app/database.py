@@ -65,6 +65,7 @@ class Database:
         response = await request.execute()
         error = getattr(response, "error", None)
         if error is not None:
+            LOGGER.error("Supabase クエリエラーが発生しました: %s", error)
             raise RuntimeError(f"Supabase query failed: {error}")
         data = getattr(response, "data", None)
         if data is None:

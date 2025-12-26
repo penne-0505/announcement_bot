@@ -38,14 +38,20 @@ def _load_env_file(env_file: str | Path | None) -> None:
     """`.env` ファイルを読み込む。"""
 
     if env_file is None:
-        load_dotenv()
+        loaded = load_dotenv()
+        if loaded:
+            LOGGER.info(".env ファイルを読み込みました。")
+        else:
+            LOGGER.info(".env ファイルは見つからないため環境変数のみを使用します。")
         return
 
     path = Path(env_file)
     if path.is_file():
         load_dotenv(dotenv_path=path)
+        LOGGER.info(".env ファイルを読み込みました: %s", path)
         return
 
+    LOGGER.warning(".env ファイルが見つかりません: %s", path)
     raise FileNotFoundError(f".env file not found at: {path}")
 
 

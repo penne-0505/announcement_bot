@@ -37,7 +37,11 @@ async def register_commands(
     async def command_osi(
         interaction: discord.Interaction,
     ) -> None:  # pragma: no cover - Discord 実行時にテスト
-        LOGGER.info("/osi コマンドを実行したユーザー: %s", interaction.user)
+        LOGGER.info(
+            "/osi コマンドを実行しました: guild=%s user=%s",
+            interaction.guild_id,
+            interaction.user.id,
+        )
         await interaction.response.defer(ephemeral=True)
         view = SendModalView()
         await interaction.followup.send(
@@ -142,12 +146,23 @@ async def register_commands(
         try:
             channel = await temporary_voice_service.create_temporary_channel(member)
         except CategoryNotConfiguredError:
+            LOGGER.warning(
+                "一時VCカテゴリが未設定のため作成を拒否しました: guild=%s user=%s",
+                guild.id,
+                interaction.user.id,
+            )
             await interaction.response.send_message(
                 "⚠️ 一時VC用カテゴリが未設定です。管理者に `/temporary_vc category` を依頼してください。",
                 ephemeral=True,
             )
             return
         except TemporaryVoiceChannelExistsError as exc:
+            LOGGER.info(
+                "既存の一時VCがあるため作成をスキップしました: guild=%s user=%s channel=%s",
+                guild.id,
+                interaction.user.id,
+                exc.record.channel_id,
+            )
             jump = (
                 f"<#{exc.record.channel_id}>" if exc.record.channel_id else "登録済み"
             )
@@ -157,6 +172,11 @@ async def register_commands(
             )
             return
         except TemporaryVoiceChannelCreationError:
+            LOGGER.error(
+                "一時VCの作成に失敗しました: guild=%s user=%s",
+                guild.id,
+                interaction.user.id,
+            )
             await interaction.response.send_message(
                 "❌ チャンネルの作成に失敗しました。時間をおいて再試行してください。",
                 ephemeral=True,
@@ -166,6 +186,12 @@ async def register_commands(
         await interaction.response.send_message(
             f"✅ 一時VCを作成しました: {channel.mention}",
             ephemeral=True,
+        )
+        LOGGER.info(
+            "一時VCを作成しました: guild=%s user=%s channel=%s",
+            guild.id,
+            interaction.user.id,
+            channel.id,
         )
 
     @temporary_vc_group.command(
@@ -187,6 +213,11 @@ async def register_commands(
         try:
             await temporary_voice_service.reset_temporary_channel(member)
         except TemporaryVoiceChannelNotFoundError:
+            LOGGER.info(
+                "一時VCのリセット対象が見つかりませんでした: guild=%s user=%s",
+                guild.id,
+                interaction.user.id,
+            )
             await interaction.response.send_message(
                 "ℹ️ 管理対象の一時VCは登録されていません。",
                 ephemeral=True,
@@ -195,6 +226,11 @@ async def register_commands(
 
         await interaction.response.send_message(
             "🗑️ 一時VCを削除しました。", ephemeral=True
+        )
+        LOGGER.info(
+            "一時VCを削除しました: guild=%s user=%s",
+            guild.id,
+            interaction.user.id,
         )
 
     tree.add_command(temporary_vc_group)

@@ -37,8 +37,10 @@ class DiscordApplication:
 async def build_discord_app(config: AppConfig) -> DiscordApplication:
     """Discord クライアントを初期化し、コマンド登録までを完了させる。"""
 
+    LOGGER.info("Discord アプリケーションの初期化を開始します。")
     database = Database(config.database.url, config.database.key)
     await database.connect()
+    LOGGER.info("Supabase への接続が完了しました。")
     rule_repository = ChannelNicknameRuleRepository(database)
     temporary_category_repo = TemporaryVoiceCategoryRepository(database)
     temporary_channel_repo = TemporaryVoiceChannelRepository(database)
